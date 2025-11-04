@@ -4,10 +4,12 @@ import torch
 import random
 import numpy as np
 import re
+import os
 
-# ---------------------------------------------------------
-# 1. Namespace Helper (to access config keys as attributes)
-# ---------------------------------------------------------
+
+# ============================================================
+# Recursive Namespace Helper
+# ============================================================
 class Namespace(object):
     """Recursively converts dictionaries into accessible namespaces."""
     def __init__(self, somedict):
@@ -25,9 +27,10 @@ class Namespace(object):
             f"Please include it in your config YAML file!"
         )
 
-# ---------------------------------------------------------
-# 2. Deterministic Seed Setup
-# ---------------------------------------------------------
+
+# ============================================================
+# Deterministic Seed
+# ============================================================
 def set_deterministic(seed: int):
     """Ensure deterministic results by fixing all random seeds."""
     if seed is not None:
@@ -39,47 +42,47 @@ def set_deterministic(seed: int):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-# ---------------------------------------------------------
-# 3. Boolean Converter
-# ---------------------------------------------------------
+
+# ============================================================
+# String → Boolean Helper
+# ============================================================
 def str2bool(v):
     """Converts common string inputs to boolean."""
     if isinstance(v, bool):
         return v
     return v.lower() in ("yes", "true", "t", "1")
 
-# ---------------------------------------------------------
-# 4. Argument Parser
-# ---------------------------------------------------------
+
+# ============================================================
+# Main Argument Parser
+# ============================================================
 def get_args():
     parser = argparse.ArgumentParser(description="Continual Anomaly Detection Benchmark")
 
-    # --- Base Paths ---
-    parser.add_argument('--config-file', default='./configs/test.yaml', type=str,
-                        help='Path to YAML config file (e.g., ./configs/replay.yaml)')
+    # -----------------------------------------------------------
+    # Core paths and devices
+    # -----------------------------------------------------------
+    parser.add_argument('--config-file', default='./configs/cad.yaml', type=str,
+                        help='Path to YAML config file (e.g., ./configs/cad.yaml)')
     parser.add_argument('--device', type=str,
                         default='cuda' if torch.cuda.is_available() else 'cpu',
-                        help='Device to use for training')
-    parser.add_argument('--data_dir', type=str, default='./data/mvtec_ad',
-                        help='Path to MVTec AD dataset')
-    parser.add_argument('--mtd_dir', type=str, default='./data/mtd_ano_mask',
-                        help='Path to preprocessed MTD anomaly mask folder (if any)')
+                        help='Device to use for training (cuda or cpu)')
 
-    # --- General Training Settings ---
+    # -----------------------------------------------------------
+    # Model / checkpoints / misc
+    # -----------------------------------------------------------
     parser.add_argument('--save_checkpoint', type=str2bool, default=False,
-                        help='Whether to save checkpoints')
+                        help='Whether to save checkpoints after training')
     parser.add_argument('--save_path', type=str, default='./checkpoints',
                         help='Directory to save model checkpoints')
-    parser.add_argument('--noise_ratio', type=float, default=0.0,
-                        help='Ratio of label noise (if used)')
-    parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducibility')
+    parser.add_argument('--seed', type=int, default=42,
+                        help='Random seed for reproducibility')
 
-    # --- Parse known arguments first ---
     args = parser.parse_args()
 
-    # ---------------------------------------------------------
-    # 5. Load YAML Config and Merge with CLI Arguments
-    # ---------------------------------------------------------
+    # -----------------------------------------------------------
+    # Load YAML config
+    # -----------------------------------------------------------
     try:
         with open(args.config_file, 'r') as f:
             yaml_data = yaml.safe_load(f)
@@ -90,22 +93,45 @@ def get_args():
     # Convert YAML dict to Namespace for nested access
     config_namespace = Namespace(yaml_data)
 
-    # Merge YAML values into argparse Namespace
+    # Merge YAML data into argparse args
     for key, value in config_namespace.__dict__.items():
         vars(args)[key] = value
 
-    # Set deterministic behavior
-    set_deterministic(args.seed)
+    # -----------------------------------------------------------
+    # Handle multiple datasets
+    # -----------------------------------------------------------
+    if not hasattr(args, 'datasets'):
+        raise ValueError("Your YAML config must include a 'datasets:' list.")
 
-    print(f"[Device] Using device: {args.device}")
+    # Validate all datasets
+    print("\n[Dataset Configuration]")
+    for ds in args.datasets:
+        name = ds.get('name', 'unknown')
+        path = ds.get('data_dir', './data')
+        n_tasks = ds.get('n_tasks', 'N/A')
+
+        if not os.path.exists(path):
+            print(f"  ⚠️  Warning: Dataset path not found for '{name}' → {path}")
+        else:
+            print(f"  ✅ {name} → {path} ({n_tasks} tasks)")
+
+    # -----------------------------------------------------------
+    # Set deterministic behavior and display info
+    # -----------------------------------------------------------
+    set_deterministic(args.seed)
+    print(f"\n[Device] Using device: {args.device}")
+    print("=" * 60)
+    print("Running Continual Anomaly Detection Benchmark")
+    print("=" * 60)
+
     return args
 
 
+# ============================================================
+# Entry Point (for quick standalone test)
+# ============================================================
 if __name__ == "__main__":
-    # Quick test for standalone runs
     args = get_args()
     print("\n=== Loaded Arguments ===")
     for k, v in vars(args).items():
         print(f"{k}: {v}")
-              
-//checkpoint
