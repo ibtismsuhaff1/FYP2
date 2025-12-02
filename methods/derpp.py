@@ -23,16 +23,19 @@ class DERpp(BaseMethodwDNE):
         logits, embeds = self.net(inputs)
         loss = self.cross_entropy(logits, labels)
         if not self.buffer.is_empty():
-            buf_inputs, buf_labels, buf_logits = self.buffer.get_data(self.args.train.batch_size)
+            buf_inputs, buf_labels, buf_logits = self.buffer.get_data(
+                self.args.train.batch_size
+            )
             past_logits, _ = self.net(buf_inputs)
-            loss += (self.args.train.alpha * F.mse_loss(past_logits, buf_logits)
-                     + self.args.train.beta * self.cross_entropy(past_logits, buf_labels))
+            loss += self.args.train.alpha * F.mse_loss(
+                past_logits, buf_logits
+            ) + self.args.train.beta * self.cross_entropy(past_logits, buf_labels)
 
         loss.backward()
         self.optimizer.step()
         if self.scheduler:
             self.scheduler.step(epoch)
 
-        self.buffer.add_data(examples=inputs[:num], labels=labels[:num], logits=noaug_logits.data)
-
-
+        self.buffer.add_data(
+            examples=inputs[:num], labels=labels[:num], logits=noaug_logits.data
+        )

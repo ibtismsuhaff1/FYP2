@@ -4,6 +4,7 @@ import numpy as np
 """ Layer-wise adaptive rate scaling for SGD in PyTorch! """
 from torch.optim.optimizer import Optimizer, required
 
+
 class LARS(Optimizer):
     r"""Implements layer-wise adaptive rate scaling for SGD.
 
@@ -27,22 +28,33 @@ class LARS(Optimizer):
         >>> loss_fn(model(input), target).backward()
         >>> optimizer.step()
     """
-    def __init__(self, params, lr=required, momentum=.9,
-                 weight_decay=.0005, eta=0.001, max_epoch=200):
+
+    def __init__(
+        self,
+        params,
+        lr=required,
+        momentum=0.9,
+        weight_decay=0.0005,
+        eta=0.001,
+        max_epoch=200,
+    ):
         if lr is not required and lr < 0.0:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if momentum < 0.0:
             raise ValueError("Invalid momentum value: {}".format(momentum))
         if weight_decay < 0.0:
-            raise ValueError("Invalid weight_decay value: {}"
-                             .format(weight_decay))
+            raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
         if eta < 0.0:
             raise ValueError("Invalid LARS coefficient value: {}".format(eta))
 
         self.epoch = 0
-        defaults = dict(lr=lr, momentum=momentum,
-                        weight_decay=weight_decay,
-                        eta=eta, max_epoch=max_epoch)
+        defaults = dict(
+            lr=lr,
+            momentum=momentum,
+            weight_decay=weight_decay,
+            eta=eta,
+            max_epoch=max_epoch,
+        )
         super(LARS, self).__init__(params, defaults)
 
     def step(self, epoch=None, closure=None):
@@ -63,13 +75,13 @@ class LARS(Optimizer):
             self.epoch += 1
 
         for group in self.param_groups:
-            weight_decay = group['weight_decay']
-            momentum = group['momentum']
-            eta = group['eta']
-            lr = group['lr']
-            max_epoch = group['max_epoch']
+            weight_decay = group["weight_decay"]
+            momentum = group["momentum"]
+            eta = group["eta"]
+            lr = group["lr"]
+            max_epoch = group["max_epoch"]
 
-            for p in group['params']:
+            for p in group["params"]:
                 if p.grad is None:
                     continue
 
@@ -89,25 +101,36 @@ class LARS(Optimizer):
                 # Update the momentum term
                 actual_lr = local_lr * global_lr
 
-                if 'momentum_buffer' not in param_state:
-                    buf = param_state['momentum_buffer'] =  torch.zeros_like(p.data)
+                if "momentum_buffer" not in param_state:
+                    buf = param_state["momentum_buffer"] = torch.zeros_like(p.data)
                 else:
-                    buf = param_state['momentum_buffer']
+                    buf = param_state["momentum_buffer"]
                 buf.mul_(momentum).add_(d_p + weight_decay * p.data, alpha=actual_lr)
                 p.data.add_(-buf)
 
         return loss
 
+
 class LR_Scheduler(object):
-    def __init__(self, optimizer, warmup_epochs, warmup_lr, num_epochs, base_lr, final_lr, iter_per_epoch,
-                 constant_predictor_lr=False):
+    def __init__(
+        self,
+        optimizer,
+        warmup_epochs,
+        warmup_lr,
+        num_epochs,
+        base_lr,
+        final_lr,
+        iter_per_epoch,
+        constant_predictor_lr=False,
+    ):
         self.base_lr = base_lr
         self.constant_predictor_lr = constant_predictor_lr
         warmup_iter = iter_per_epoch * warmup_epochs
         warmup_lr_schedule = np.linspace(warmup_lr, base_lr, warmup_iter)
         decay_iter = iter_per_epoch * (num_epochs - warmup_epochs)
         cosine_lr_schedule = final_lr + 0.5 * (base_lr - final_lr) * (
-                    1 + np.cos(np.pi * np.arange(decay_iter) / decay_iter))
+            1 + np.cos(np.pi * np.arange(decay_iter) / decay_iter)
+        )
 
         self.lr_schedule = np.concatenate((warmup_lr_schedule, cosine_lr_schedule))
         self.optimizer = optimizer
@@ -118,10 +141,10 @@ class LR_Scheduler(object):
     def step(self):
         for param_group in self.optimizer.param_groups:
 
-            if self.constant_predictor_lr and param_group['name'] == 'predictor':
-                param_group['lr'] = self.base_lr
+            if self.constant_predictor_lr and param_group["name"] == "predictor":
+                param_group["lr"] = self.base_lr
             else:
-                lr = param_group['lr'] = self.lr_schedule[self.iter]
+                lr = param_group["lr"] = self.lr_schedule[self.iter]
 
         self.iter += 1
         self.current_lr = lr
@@ -141,12 +164,27 @@ class LR_Scheduler(object):
 def get_optimizer(args, model):
     params = model.parameters()
 
-    if args.train.optimizer.name == 'lars':
-        optimizer = LARS(params, lr=args.train.base_lr, momentum=args.train.optimizer.momentum, weight_decay=args.train.optimizer.weight_decay)
-    elif args.train.optimizer.name == 'sgd':
-        optimizer = torch.optim.SGD(params, lr=args.train.base_lr, momentum=args.train.optimizer.momentum, weight_decay=args.train.optimizer.weight_decay)
-    elif args.train.optimizer.name == 'adam':
-        optimizer = torch.optim.Adam(params, lr=args.train.base_lr, eps=0.0004, weight_decay=args.train.optimizer.weight_decay)
+    if args.train.optimizer.name == "lars":
+        optimizer = LARS(
+            params,
+            lr=args.train.base_lr,
+            momentum=args.train.optimizer.momentum,
+            weight_decay=args.train.optimizer.weight_decay,
+        )
+    elif args.train.optimizer.name == "sgd":
+        optimizer = torch.optim.SGD(
+            params,
+            lr=args.train.base_lr,
+            momentum=args.train.optimizer.momentum,
+            weight_decay=args.train.optimizer.weight_decay,
+        )
+    elif args.train.optimizer.name == "adam":
+        optimizer = torch.optim.Adam(
+            params,
+            lr=args.train.base_lr,
+            eps=0.0004,
+            weight_decay=args.train.optimizer.weight_decay,
+        )
         # optimizer = torch.optim.Adam([
         #     {'params': params},
         #     {'params': z_head_params, 'lr': args.train.base_lr * 3},
@@ -156,16 +194,31 @@ def get_optimizer(args, model):
         raise NotImplementedError
     return optimizer
 
+
 def get_head_optimizer(args, model):
     params = model.head.parameters()
 
-    if args.train.optimizer.name == 'lars':
-        optimizer = LARS(params, lr=args.train.base_lr, momentum=args.train.optimizer.momentum, weight_decay=args.train.optimizer.weight_decay)
-    elif args.train.optimizer.name == 'sgd':
-        optimizer = torch.optim.SGD(params, lr=args.train.base_lr, momentum=args.train.optimizer.momentum, weight_decay=args.train.optimizer.weight_decay)
-    elif args.train.optimizer.name == 'adam':
-        optimizer = torch.optim.Adam(params, lr=args.train.base_lr * 3, eps=0.0004, weight_decay=args.train.optimizer.weight_decay)
+    if args.train.optimizer.name == "lars":
+        optimizer = LARS(
+            params,
+            lr=args.train.base_lr,
+            momentum=args.train.optimizer.momentum,
+            weight_decay=args.train.optimizer.weight_decay,
+        )
+    elif args.train.optimizer.name == "sgd":
+        optimizer = torch.optim.SGD(
+            params,
+            lr=args.train.base_lr,
+            momentum=args.train.optimizer.momentum,
+            weight_decay=args.train.optimizer.weight_decay,
+        )
+    elif args.train.optimizer.name == "adam":
+        optimizer = torch.optim.Adam(
+            params,
+            lr=args.train.base_lr * 3,
+            eps=0.0004,
+            weight_decay=args.train.optimizer.weight_decay,
+        )
     else:
         raise NotImplementedError
     return optimizer
-

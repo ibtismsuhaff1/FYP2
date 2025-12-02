@@ -1,13 +1,39 @@
-# Ignore dataset folders
-data/
-results/
-checkpoints/
-
-# Ignore caches
+# Python
 __pycache__/
 *.pyc
 *.pyo
-*.DS_Store
-*.zip
-*.tar
-*.gz
+*.pyd
+*.so
+
+# Virtual environments
+venv/
+venv310/
+.env/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Dataset folders (DO NOT PUSH DATA)
+data/
+datasets/
+
+# Results & outputs
+results/
+outputs/
+*.npy
+*.npz
+*.pth
+*.png
+*.jpg
+
+# Logs
+*.log
+logs/
+
+# Cache
+.cache/

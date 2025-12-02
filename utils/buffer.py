@@ -34,20 +34,26 @@ class Buffer:
     """
     The memory buffer of rehearsal method.
     """
-    def __init__(self, buffer_size, device, n_tasks=None, mode='reservoir'):
-        assert mode in ['ring', 'reservoir']
+
+    def __init__(self, buffer_size, device, n_tasks=None, mode="reservoir"):
+        assert mode in ["ring", "reservoir"]
         self.buffer_size = buffer_size
         self.device = device
         self.num_seen_examples = 0
         self.functional_index = eval(mode)
-        if mode == 'ring':
+        if mode == "ring":
             assert n_tasks is not None
             self.task_number = n_tasks
             self.buffer_portion_size = buffer_size // n_tasks
-        self.attributes = ['examples', 'labels', 'logits', 'task_labels']
+        self.attributes = ["examples", "labels", "logits", "task_labels"]
 
-    def init_tensors(self, examples: torch.Tensor, labels: torch.Tensor,
-                     logits: torch.Tensor, task_labels: torch.Tensor) -> None:
+    def init_tensors(
+        self,
+        examples: torch.Tensor,
+        labels: torch.Tensor,
+        logits: torch.Tensor,
+        task_labels: torch.Tensor,
+    ) -> None:
         """
         Initializes just the required tensors.
         :param examples: tensor containing the images
@@ -58,9 +64,16 @@ class Buffer:
         for attr_str in self.attributes:
             attr = eval(attr_str)
             if attr is not None and not hasattr(self, attr_str):
-                typ = torch.int64 if attr_str.endswith('els') else torch.float32
-                setattr(self, attr_str, torch.zeros((self.buffer_size,
-                        *attr.shape[1:]), dtype=typ, device=self.device))
+                typ = torch.int64 if attr_str.endswith("els") else torch.float32
+                setattr(
+                    self,
+                    attr_str,
+                    torch.zeros(
+                        (self.buffer_size, *attr.shape[1:]),
+                        dtype=typ,
+                        device=self.device,
+                    ),
+                )
 
     def add_data(self, examples, labels=None, logits=None, task_labels=None):
         """
@@ -71,7 +84,7 @@ class Buffer:
         :param task_labels: tensor containing the task labels
         :return:
         """
-        if not hasattr(self, 'examples'):
+        if not hasattr(self, "examples"):
             self.init_tensors(examples, labels, logits, task_labels)
 
         for i in range(examples.shape[0]):
@@ -86,7 +99,7 @@ class Buffer:
                 if task_labels is not None:
                     self.task_labels[index] = task_labels[i].to(self.device)
 
-    def get_data(self, size: int, transform: transforms=None) -> Tuple:
+    def get_data(self, size: int, transform: transforms = None) -> Tuple:
         """
         Random samples a batch of size items.
         :param size: the number of requested items
@@ -96,11 +109,18 @@ class Buffer:
         if size > min(self.num_seen_examples, self.examples.shape[0]):
             size = min(self.num_seen_examples, self.examples.shape[0])
 
-        choice = np.random.choice(min(self.num_seen_examples, self.examples.shape[0]),
-                                  size=size, replace=False)
-        if transform is None: transform = lambda x: x
-        ret_tuple = (torch.stack([transform(ee.cpu())
-                            for ee in self.examples[choice]]).to(self.device),)
+        choice = np.random.choice(
+            min(self.num_seen_examples, self.examples.shape[0]),
+            size=size,
+            replace=False,
+        )
+        if transform is None:
+            transform = lambda x: x
+        ret_tuple = (
+            torch.stack([transform(ee.cpu()) for ee in self.examples[choice]]).to(
+                self.device
+            ),
+        )
         for attr_str in self.attributes[1:]:
             if hasattr(self, attr_str):
                 attr = getattr(self, attr_str)
@@ -117,15 +137,17 @@ class Buffer:
         else:
             return False
 
-    def get_all_data(self, transform: transforms=None) -> Tuple:
+    def get_all_data(self, transform: transforms = None) -> Tuple:
         """
         Return all the items in the memory buffer.
         :param transform: the transformation to be applied (data augmentation)
         :return: a tuple with all the items in the memory buffer
         """
-        if transform is None: transform = lambda x: x
-        ret_tuple = (torch.stack([transform(ee.cpu())
-                            for ee in self.examples]).to(self.device),)
+        if transform is None:
+            transform = lambda x: x
+        ret_tuple = (
+            torch.stack([transform(ee.cpu()) for ee in self.examples]).to(self.device),
+        )
         for attr_str in self.attributes[1:]:
             if hasattr(self, attr_str):
                 attr = getattr(self, attr_str)
@@ -140,5 +162,3 @@ class Buffer:
             if hasattr(self, attr_str):
                 delattr(self, attr_str)
         self.num_seen_examples = 0
-
-

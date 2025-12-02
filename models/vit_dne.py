@@ -10,6 +10,7 @@ import torch.nn.functional as F
 def _load_vit_b_16(pretrained: bool = True):
     """Load Vision Transformer (ViT-B/16) safely."""
     from torchvision.models import vit_b_16, ViT_B_16_Weights
+
     if pretrained:
         try:
             return vit_b_16(weights=ViT_B_16_Weights.IMAGENET1K_V1)
@@ -23,7 +24,14 @@ def _load_vit_b_16(pretrained: bool = True):
 # ------------------------------------------------------------
 class DNEMemory(nn.Module):
     """Simple Gaussian model (mean + precision) for normal embeddings."""
-    def __init__(self, feat_dim: int, eps: float = 1e-4, shrink: float = 1e-2, device: str = "cpu"):
+
+    def __init__(
+        self,
+        feat_dim: int,
+        eps: float = 1e-4,
+        shrink: float = 1e-2,
+        device: str = "cpu",
+    ):
         super().__init__()
         self.register_buffer("mean", torch.zeros(feat_dim))
         self.register_buffer("prec", torch.eye(feat_dim))
@@ -67,7 +75,13 @@ class DNEMemory(nn.Module):
 # ------------------------------------------------------------
 class ViT_DNE(nn.Module):
     """ViT-B/16 backbone + per-task Gaussian memories (DNE)."""
-    def __init__(self, device: str = "cpu", freeze_backbone: bool = True, pretrained_backbone: bool = True):
+
+    def __init__(
+        self,
+        device: str = "cpu",
+        freeze_backbone: bool = True,
+        pretrained_backbone: bool = True,
+    ):
         super().__init__()
         self.backbone = _load_vit_b_16(pretrained=pretrained_backbone)
         self.feat_dim = self.backbone.heads.head.in_features
@@ -96,11 +110,15 @@ class ViT_DNE(nn.Module):
         for b_idx, (imgs, labels) in enumerate(dataloader):
             if max_batches is not None and b_idx >= max_batches:
                 break
-            mask = (labels == 0)
+            mask = labels == 0
             if mask.sum().item() == 0:
                 continue
             imgs = imgs[mask].to(self.device, non_blocking=True)
-            with torch.amp.autocast('cuda', enabled=False) if torch.cuda.is_available() else torch.autocast('cpu', enabled=False):
+            with (
+                torch.amp.autocast("cuda", enabled=False)
+                if torch.cuda.is_available()
+                else torch.autocast("cpu", enabled=False)
+            ):
                 feats = self.forward_features(imgs)
             normal_feats.append(feats.cpu())
 
@@ -126,11 +144,17 @@ class ViT_DNE(nn.Module):
             if max_batches is not None and b_idx >= max_batches:
                 break
             imgs = imgs.to(self.device, non_blocking=True)
-            with torch.amp.autocast('cuda', enabled=False) if torch.cuda.is_available() else torch.autocast('cpu', enabled=False):
+            with (
+                torch.amp.autocast("cuda", enabled=False)
+                if torch.cuda.is_available()
+                else torch.autocast("cpu", enabled=False)
+            ):
                 feats = self.forward_features(imgs)
 
             if memory_idx is not None and memory_idx < len(self.memories):
-                mem = self.memories[memory_idx].to(self.device)  # ✅ ensure correct device
+                mem = self.memories[memory_idx].to(
+                    self.device
+                )  # ✅ ensure correct device
                 scores = mem.score(feats.to(self.device))
             else:
                 if len(self.memories) == 0:

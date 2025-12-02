@@ -7,11 +7,10 @@ from utils.de_resnet import de_resnet18, de_resnet34, de_wide_resnet50_2, de_res
 import torch.hub
 
 
-
 class NetRevDis(nn.Module):
     def __init__(self, args):
         super(NetRevDis, self).__init__()
-        torch.hub.set_dir('./checkpoints')
+        torch.hub.set_dir("./checkpoints")
         self.args = args
         self.encoder, self.bn = wide_resnet50_2(pretrained=True)
         for param in self.encoder.parameters():

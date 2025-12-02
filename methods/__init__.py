@@ -11,32 +11,32 @@ from .agem import AGEM
 
 
 def get_model(args, net, optimizer, scheduler):
-    if args.model.method == 'dne':
+    if args.model.method == "dne":
         model = DNE(args, net, optimizer, scheduler)
         args.dataset.strong_augmentation = True
-    elif args.model.method == 'upper':
+    elif args.model.method == "upper":
         model = CutPaste(args, net, optimizer, scheduler)
-    elif args.model.method == 'cutpaste':
+    elif args.model.method == "cutpaste":
         model = CutPaste(args, net, optimizer, scheduler)
         args.dataset.strong_augmentation = True
         args.dataset.strong_augmentation = True
-    elif args.model.method == 'csflow':
+    elif args.model.method == "csflow":
         model = CSFlow(args, net, optimizer, scheduler)
         args.dataset.strong_augmentation = False
-    elif args.model.method == 'panda':
+    elif args.model.method == "panda":
         model = PANDA(args, net, optimizer, scheduler)
         args.dataset.strong_augmentation = False
-    elif args.model.method == 'revdis':
+    elif args.model.method == "revdis":
         model = RevDis(args, net, optimizer, scheduler)
         args.dataset.strong_augmentation = False
-    elif args.model.method == 'er':
+    elif args.model.method == "er":
         model = ER(args, net, optimizer, scheduler)
-    elif args.model.method == 'der':
+    elif args.model.method == "der":
         model = DER(args, net, optimizer, scheduler)
-    elif args.model.method == 'derpp':
+    elif args.model.method == "derpp":
         model = DERpp(args, net, optimizer, scheduler)
-    elif args.model.method == 'fdr':
+    elif args.model.method == "fdr":
         model = FDR(args, net, optimizer, scheduler)
-    elif args.model.method == 'agem':
+    elif args.model.method == "agem":
         model = AGEM(args, net, optimizer, scheduler)
     return model

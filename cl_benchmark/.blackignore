@@ -1,0 +1,5 @@
+venv310/
+venv/
+.venv/
+__pycache__/
+data/

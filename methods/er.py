@@ -34,4 +34,3 @@ class ER(BaseMethodwDNE):
             self.scheduler.step(epoch)
 
         self.buffer.add_data(examples=inputs[:num], labels=labels[:num])
-

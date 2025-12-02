@@ -25,13 +25,12 @@ class FDR(BaseMethodwDNE):
             self.buffer.empty()
 
             for ttl in buf_tl.unique():
-                idx = (buf_tl == ttl)
+                idx = buf_tl == ttl
                 ex, log, tasklab = buf_x[idx], buf_log[idx], buf_tl[idx]
                 first = min(ex.shape[0], examples_per_task)
                 self.buffer.add_data(
-                    examples=ex[:first],
-                    logits=log[:first],
-                    task_labels=tasklab[:first])
+                    examples=ex[:first], logits=log[:first], task_labels=tasklab[:first]
+                )
         counter = 0
         with torch.no_grad():
             for i, data in enumerate(train_loader):
@@ -50,10 +49,13 @@ class FDR(BaseMethodwDNE):
                 not_aug_logits, not_aug_embeds = self.net(not_aug_inputs)
                 if examples_per_task - counter < 0:
                     break
-                self.buffer.add_data(examples=not_aug_inputs[:(examples_per_task - counter)],
-                                     logits=not_aug_logits.data[:(examples_per_task - counter)],
-                                     task_labels=(torch.ones(self.args.train.batch_size) *
-                                                  (self.current_task - 1))[:(examples_per_task - counter)])
+                self.buffer.add_data(
+                    examples=not_aug_inputs[: (examples_per_task - counter)],
+                    logits=not_aug_logits.data[: (examples_per_task - counter)],
+                    task_labels=(
+                        torch.ones(self.args.train.batch_size) * (self.current_task - 1)
+                    )[: (examples_per_task - counter)],
+                )
                 counter += self.args.train.batch_size
 
     def forward(self, epoch, inputs, labels, one_epoch_embeds, t, *args):
@@ -73,7 +75,9 @@ class FDR(BaseMethodwDNE):
             self.optimizer.zero_grad()
             buf_inputs, buf_logits, _ = self.buffer.get_data(self.args.train.batch_size)
             past_logits, _ = self.net(buf_inputs)
-            loss = torch.norm(self.soft(past_logits) - self.soft(buf_logits), 2, 1).mean()
+            loss = torch.norm(
+                self.soft(past_logits) - self.soft(buf_logits), 2, 1
+            ).mean()
             assert not torch.isnan(loss)
             loss.backward()
             self.optimizer.step()

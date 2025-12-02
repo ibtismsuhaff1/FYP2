@@ -20,8 +20,12 @@ class GaussianDensityTorch(object):
     def fit(self, embeddings):
         self.mean = torch.mean(embeddings, dim=0)
         # self.cov = torch.Tensor(empirical_covariance(embeddings - self.mean), device="cpu")
-        self.cov = torch.Tensor(LedoitWolf().fit(embeddings.cpu()).covariance_, device="cpu")
-        self.inv_cov = torch.Tensor(LedoitWolf().fit(embeddings.cpu()).precision_, device="cpu")
+        self.cov = torch.Tensor(
+            LedoitWolf().fit(embeddings.cpu()).covariance_, device="cpu"
+        )
+        self.inv_cov = torch.Tensor(
+            LedoitWolf().fit(embeddings.cpu()).precision_, device="cpu"
+        )
         return self.mean, self.cov
 
     def predict(self, embeddings):
@@ -30,7 +34,7 @@ class GaussianDensityTorch(object):
 
     @staticmethod
     def mahalanobis_distance(
-            values: torch.Tensor, mean: torch.Tensor, inv_covariance: torch.Tensor
+        values: torch.Tensor, mean: torch.Tensor, inv_covariance: torch.Tensor
     ) -> torch.Tensor:
         """Compute the batched mahalanobis distance.
         values is a batch of feature vectors.
@@ -55,7 +59,7 @@ class GaussianDensityTorch(object):
         return dist.sqrt()
 
 
-class GaussianDensitySklearn():
+class GaussianDensitySklearn:
     """Li et al. use sklearn for density estimation.
     This implementation uses sklearn KernelDensity module for fitting and predicting.
     """
@@ -63,7 +67,7 @@ class GaussianDensitySklearn():
     def fit(self, embeddings):
         # estimate KDE parameters
         # use grid search cross-validation to optimize the bandwidth
-        self.kde = KernelDensity(kernel='gaussian', bandwidth=1).fit(embeddings)
+        self.kde = KernelDensity(kernel="gaussian", bandwidth=1).fit(embeddings)
 
     def predict(self, embeddings):
         scores = self.kde.score_samples(embeddings)

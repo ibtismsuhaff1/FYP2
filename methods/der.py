@@ -24,11 +24,15 @@ class DER(BaseMethodwDNE):
         loss = self.cross_entropy(logits, labels)
         if not self.buffer.is_empty():
             if self.args.model.with_embeds:
-                buf_inputs, buf_embeds = self.buffer.get_data(self.args.train.batch_size)
+                buf_inputs, buf_embeds = self.buffer.get_data(
+                    self.args.train.batch_size
+                )
                 _, past_embeds = self.net(buf_inputs)
                 loss += self.args.train.alpha * F.mse_loss(past_embeds, buf_embeds)
             else:
-                buf_inputs, buf_logits = self.buffer.get_data(self.args.train.batch_size)
+                buf_inputs, buf_logits = self.buffer.get_data(
+                    self.args.train.batch_size
+                )
                 past_logits, _ = self.net(buf_inputs)
                 loss += self.args.train.alpha * F.mse_loss(past_logits, buf_logits)
 

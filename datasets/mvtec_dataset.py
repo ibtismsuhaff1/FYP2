@@ -7,12 +7,14 @@ import numpy as np
 import pandas as pd
 from collections import Iterable
 
+
 def flatten(items, ignore_types=(str, bytes)):
     for x in items:
         if isinstance(x, Iterable):
             yield from flatten(x)
         else:
             yield x
+
 
 class Repeat(Dataset):
     def __init__(self, org_dataset, new_length):
@@ -30,7 +32,9 @@ class Repeat(Dataset):
 class MVTecAD(Dataset):
     """Face Landmarks dataset."""
 
-    def __init__(self, root_dir, task_mvtec_classes, size, transform=None, mode="train"):
+    def __init__(
+        self, root_dir, task_mvtec_classes, size, transform=None, mode="train"
+    ):
         """
         Args:
             root_dir (string): Directory with the MVTec AD dataset.
@@ -48,20 +52,31 @@ class MVTecAD(Dataset):
         # find test images
         for class_name in self.task_mvtec_classes:
             if self.mode == "train":
-                self.image_names = list((self.root_dir / class_name / "train" / "good").glob("*.png"))
+                self.image_names = list(
+                    (self.root_dir / class_name / "train" / "good").glob("*.png")
+                )
                 self.all_image_names.append(self.image_names)
                 print("loading images")
                 # during training we cache the smaller images for performance reasons (not a good coding style)
-                self.imgs = (Parallel(n_jobs=10)(
-                    delayed(lambda file: Image.open(file).resize((size, size)).convert("RGB"))(file) for file in
-                    self.image_names))
+                self.imgs = Parallel(n_jobs=10)(
+                    delayed(
+                        lambda file: Image.open(file)
+                        .resize((size, size))
+                        .convert("RGB")
+                    )(file)
+                    for file in self.image_names
+                )
                 self.all_imgs.append(self.imgs)
                 print(f"loaded {class_name} : {len(self.imgs)} images")
             else:
                 # test mode
-                self.image_names = list((self.root_dir / class_name / "test").glob(str(Path("*") / "*.png")))
+                self.image_names = list(
+                    (self.root_dir / class_name / "test").glob(str(Path("*") / "*.png"))
+                )
                 self.all_image_names.append(self.image_names)
-        self.all_imgs, self.all_image_names = list(flatten(self.all_imgs)), list(flatten(self.all_image_names))
+        self.all_imgs, self.all_image_names = list(flatten(self.all_imgs)), list(
+            flatten(self.all_image_names)
+        )
 
     def __len__(self):
         return len(self.all_image_names)

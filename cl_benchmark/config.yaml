@@ -1,0 +1,26 @@
+BACKBONE: ResNet18_pretrained
+OPTIMIZER: SGD
+CL_METHOD: Replay
+
+# Dataset settings
+DATASET_NAME: "mvtec+loco"
+MVT_ROOT: "data/mvtec"
+MVT_LOCO_ROOT: "data/mvtec-loco"
+
+# Training
+EPOCHS_PER_TASK: 8
+BATCH_SIZE: 32
+SGD_LR: 0.0005
+SGD_MOMENTUM: 0.9
+ADAM_LR: 0.0005
+FREEZE_BACKBONE: True
+
+# Replay Buffer
+REPLAY_BUFFER_SIZE_PER_CLASS: 80
+REPLAY_BATCH_SIZE: 32
+
+# System
+DEVICE: cuda
+SEED: 42
+MOMENTUM: 0.9       # FIXED
+WEIGHT_DECAY: 0.0

@@ -5,7 +5,6 @@ import torch.nn.functional as F
 from .utils.base_method import BaseMethod
 
 
-
 class CutPaste(BaseMethod):
     def __init__(self, args, net, optimizer, scheduler):
         super(CutPaste, self).__init__(args, net, optimizer, scheduler)
@@ -30,13 +29,10 @@ class CutPaste(BaseMethod):
             self.scheduler.step(epoch)
 
     def training_epoch(self, density, one_epoch_embeds, *args):
-        if self.args.eval.eval_classifier == 'density':
+        if self.args.eval.eval_classifier == "density":
             one_epoch_embeds = torch.cat(one_epoch_embeds)
             one_epoch_embeds = F.normalize(one_epoch_embeds, p=2, dim=1)
             _, _ = density.fit(one_epoch_embeds)
             return density
         else:
             pass
-
-
-

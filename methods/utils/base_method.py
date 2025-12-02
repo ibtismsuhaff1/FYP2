@@ -4,7 +4,6 @@ import numpy as np
 import torch.nn.functional as F
 
 
-
 class BaseMethod(nn.Module):
     def __init__(self, args, net, optimizer, scheduler):
         super(BaseMethod, self).__init__()
@@ -16,9 +15,16 @@ class BaseMethod(nn.Module):
     def forward(self, *args):
         pass
 
-    def training_epoch(self, density, one_epoch_embeds, task_wise_mean, task_wise_cov, task_wise_train_data_nums, t):
+    def training_epoch(
+        self,
+        density,
+        one_epoch_embeds,
+        task_wise_mean,
+        task_wise_cov,
+        task_wise_train_data_nums,
+        t,
+    ):
         pass
-
 
 
 class BaseMethodwDNE(nn.Module):
@@ -44,8 +50,16 @@ class BaseMethodwDNE(nn.Module):
     def forward(self, *args):
         pass
 
-    def training_epoch(self, density, one_epoch_embeds, task_wise_mean, task_wise_cov, task_wise_train_data_nums, t):
-        if self.args.eval.eval_classifier == 'density':
+    def training_epoch(
+        self,
+        density,
+        one_epoch_embeds,
+        task_wise_mean,
+        task_wise_cov,
+        task_wise_train_data_nums,
+        t,
+    ):
+        if self.args.eval.eval_classifier == "density":
             if self.args.model.with_dne:
                 one_epoch_embeds = torch.cat(one_epoch_embeds)
                 one_epoch_embeds = F.normalize(one_epoch_embeds, p=2, dim=1)
@@ -61,8 +75,14 @@ class BaseMethodwDNE(nn.Module):
                 task_wise_embeds = []
                 for i in range(t + 1):
                     if i < t:
-                        past_mean, past_cov, past_nums = task_wise_mean[i], task_wise_cov[i], task_wise_train_data_nums[i]
-                        past_embeds = np.random.multivariate_normal(past_mean, past_cov, size=past_nums)
+                        past_mean, past_cov, past_nums = (
+                            task_wise_mean[i],
+                            task_wise_cov[i],
+                            task_wise_train_data_nums[i],
+                        )
+                        past_embeds = np.random.multivariate_normal(
+                            past_mean, past_cov, size=past_nums
+                        )
                         task_wise_embeds.append(torch.FloatTensor(past_embeds))
                     else:
                         task_wise_embeds.append(one_epoch_embeds)
@@ -77,6 +97,3 @@ class BaseMethodwDNE(nn.Module):
                 return density
         else:
             pass
-
-
-

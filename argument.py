@@ -12,10 +12,12 @@ import os
 # ============================================================
 class Namespace(object):
     """Recursively converts dictionaries into accessible namespaces."""
+
     def __init__(self, somedict):
         for key, value in somedict.items():
-            assert isinstance(key, str) and re.match(r"[A-Za-z_-]", key), \
-                f"Invalid key name in config: {key}"
+            assert isinstance(key, str) and re.match(
+                r"[A-Za-z_-]", key
+            ), f"Invalid key name in config: {key}"
             if isinstance(value, dict):
                 self.__dict__[key] = Namespace(value)
             else:
@@ -57,26 +59,44 @@ def str2bool(v):
 # Main Argument Parser
 # ============================================================
 def get_args():
-    parser = argparse.ArgumentParser(description="Continual Anomaly Detection Benchmark")
+    parser = argparse.ArgumentParser(
+        description="Continual Anomaly Detection Benchmark"
+    )
 
     # -----------------------------------------------------------
     # Core paths and devices
     # -----------------------------------------------------------
-    parser.add_argument('--config-file', default='./configs/cad.yaml', type=str,
-                        help='Path to YAML config file (e.g., ./configs/cad.yaml)')
-    parser.add_argument('--device', type=str,
-                        default='cuda' if torch.cuda.is_available() else 'cpu',
-                        help='Device to use for training (cuda or cpu)')
+    parser.add_argument(
+        "--config-file",
+        default="./configs/cad.yaml",
+        type=str,
+        help="Path to YAML config file (e.g., ./configs/cad.yaml)",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cuda" if torch.cuda.is_available() else "cpu",
+        help="Device to use for training (cuda or cpu)",
+    )
 
     # -----------------------------------------------------------
     # Model / checkpoints / misc
     # -----------------------------------------------------------
-    parser.add_argument('--save_checkpoint', type=str2bool, default=False,
-                        help='Whether to save checkpoints after training')
-    parser.add_argument('--save_path', type=str, default='./checkpoints',
-                        help='Directory to save model checkpoints')
-    parser.add_argument('--seed', type=int, default=42,
-                        help='Random seed for reproducibility')
+    parser.add_argument(
+        "--save_checkpoint",
+        type=str2bool,
+        default=False,
+        help="Whether to save checkpoints after training",
+    )
+    parser.add_argument(
+        "--save_path",
+        type=str,
+        default="./checkpoints",
+        help="Directory to save model checkpoints",
+    )
+    parser.add_argument(
+        "--seed", type=int, default=42, help="Random seed for reproducibility"
+    )
 
     args = parser.parse_args()
 
@@ -84,7 +104,7 @@ def get_args():
     # Load YAML config
     # -----------------------------------------------------------
     try:
-        with open(args.config_file, 'r') as f:
+        with open(args.config_file, "r") as f:
             yaml_data = yaml.safe_load(f)
             print(f"[Config] Loaded configuration from: {args.config_file}")
     except FileNotFoundError:
@@ -100,15 +120,15 @@ def get_args():
     # -----------------------------------------------------------
     # Handle multiple datasets
     # -----------------------------------------------------------
-    if not hasattr(args, 'datasets'):
+    if not hasattr(args, "datasets"):
         raise ValueError("Your YAML config must include a 'datasets:' list.")
 
     # Validate all datasets
     print("\n[Dataset Configuration]")
     for ds in args.datasets:
-        name = ds.get('name', 'unknown')
-        path = ds.get('data_dir', './data')
-        n_tasks = ds.get('n_tasks', 'N/A')
+        name = ds.get("name", "unknown")
+        path = ds.get("data_dir", "./data")
+        n_tasks = ds.get("n_tasks", "N/A")
 
         if not os.path.exists(path):
             print(f"  ⚠️  Warning: Dataset path not found for '{name}' → {path}")

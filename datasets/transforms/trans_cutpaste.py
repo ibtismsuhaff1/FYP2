@@ -28,6 +28,7 @@ class MyGaussianBlur(ImageFilter.Filter):
         else:
             return image.gaussian_blur(self.radius)
 
+
 class CutPaste1(object):
     """Base class for both cutpaste variants with common operations"""
 
@@ -36,10 +37,12 @@ class CutPaste1(object):
         if colorJitter is None:
             self.colorJitter = None
         else:
-            self.colorJitter = transforms.ColorJitter(brightness=colorJitter,
-                                                      contrast=colorJitter,
-                                                      saturation=colorJitter,
-                                                      hue=colorJitter)
+            self.colorJitter = transforms.ColorJitter(
+                brightness=colorJitter,
+                contrast=colorJitter,
+                saturation=colorJitter,
+                hue=colorJitter,
+            )
 
     def __call__(self, img):
         # apply transforms to both images
@@ -50,6 +53,7 @@ class CutPaste1(object):
             img = self.transform(img)
         return org_img, img
 
+
 class CutPaste(object):
     """Base class for both cutpaste variants with common operations"""
 
@@ -59,10 +63,12 @@ class CutPaste(object):
         if colorJitter is None:
             self.colorJitter = None
         else:
-            self.colorJitter = transforms.ColorJitter(brightness=colorJitter,
-                                                      contrast=colorJitter,
-                                                      saturation=colorJitter,
-                                                      hue=colorJitter)
+            self.colorJitter = transforms.ColorJitter(
+                brightness=colorJitter,
+                contrast=colorJitter,
+                saturation=colorJitter,
+                hue=colorJitter,
+            )
         # self.k = random.randint(0,3)
 
     def __call__(self, org_img, img):
@@ -100,9 +106,7 @@ class CutPasteNormal(CutPaste):
 
         # sample in log space
         log_ratio = torch.log(torch.tensor((new_aspect_ratio, 1 / new_aspect_ratio)))
-        aspect = torch.exp(
-            torch.empty(1).uniform_(log_ratio[0], log_ratio[1])
-        ).item()
+        aspect = torch.exp(torch.empty(1).uniform_(log_ratio[0], log_ratio[1])).item()
 
         cut_w = int(round(math.sqrt(ratio_area * aspect)))
         cut_h = int(round(math.sqrt(ratio_area / aspect)))
@@ -111,7 +115,12 @@ class CutPasteNormal(CutPaste):
         from_location_h = int(random.uniform(0, h - cut_h))
         from_location_w = int(random.uniform(0, w - cut_w))
 
-        box = [from_location_w, from_location_h, from_location_w + cut_w, from_location_h + cut_h]
+        box = [
+            from_location_w,
+            from_location_h,
+            from_location_w + cut_w,
+            from_location_h + cut_h,
+        ]
         patch = img.crop(box)
 
         # Before pasting, we apply color jitter.we rotate or jitter pixel values in the patch
@@ -121,9 +130,16 @@ class CutPasteNormal(CutPaste):
         to_location_h = int(random.uniform(0, h - cut_h))
         to_location_w = int(random.uniform(0, w - cut_w))
 
-        insert_box = [to_location_w, to_location_h, to_location_w + cut_w, to_location_h + cut_h]
+        insert_box = [
+            to_location_w,
+            to_location_h,
+            to_location_w + cut_w,
+            to_location_h + cut_h,
+        ]
 
-        augmented.paste(patch, insert_box)  # The pasted image patch always origins from the same image it is pasted to
+        augmented.paste(
+            patch, insert_box
+        )  # The pasted image patch always origins from the same image it is pasted to
 
         return super().__call__(img, augmented)
 
@@ -151,9 +167,7 @@ class BlurCutPasteNormal(CutPaste):
 
         # sample in log space
         log_ratio = torch.log(torch.tensor((self.aspect_ratio, 1 / self.aspect_ratio)))
-        aspect = torch.exp(
-            torch.empty(1).uniform_(log_ratio[0], log_ratio[1])
-        ).item()
+        aspect = torch.exp(torch.empty(1).uniform_(log_ratio[0], log_ratio[1])).item()
 
         cut_w = int(round(math.sqrt(ratio_area * aspect)))
         cut_h = int(round(math.sqrt(ratio_area / aspect)))
@@ -161,7 +175,12 @@ class BlurCutPasteNormal(CutPaste):
         to_location_h = int(random.uniform(0, h - cut_h))
         to_location_w = int(random.uniform(0, w - cut_w))
 
-        insert_box = [to_location_w, to_location_h, to_location_w + cut_w, to_location_h + cut_h]
+        insert_box = [
+            to_location_w,
+            to_location_h,
+            to_location_w + cut_w,
+            to_location_h + cut_h,
+        ]
 
         augmented = augmented.filter(MyGaussianBlur(radius=5, bounds=insert_box))
         return super().__call__(img, augmented)
@@ -196,7 +215,9 @@ class MultiCutPasteNormal(CutPaste):
             ratio_area = random.uniform(new_area_ratio[0], new_area_ratio[1]) * w * h
 
             # sample in log space
-            log_ratio = torch.log(torch.tensor((new_aspect_ratio, 1 / new_aspect_ratio)))
+            log_ratio = torch.log(
+                torch.tensor((new_aspect_ratio, 1 / new_aspect_ratio))
+            )
             aspect = torch.exp(
                 torch.empty(1).uniform_(log_ratio[0], log_ratio[1])
             ).item()
@@ -208,7 +229,12 @@ class MultiCutPasteNormal(CutPaste):
             from_location_h = int(random.uniform(0, h - cut_h))
             from_location_w = int(random.uniform(0, w - cut_w))
 
-            box = [from_location_w, from_location_h, from_location_w + cut_w, from_location_h + cut_h]
+            box = [
+                from_location_w,
+                from_location_h,
+                from_location_w + cut_w,
+                from_location_h + cut_h,
+            ]
             patch = img.crop(box)
 
             # Before pasting, we apply color jitter.we rotate or jitter pixel values in the patch
@@ -218,10 +244,16 @@ class MultiCutPasteNormal(CutPaste):
             to_location_h = int(random.uniform(0, h - cut_h))
             to_location_w = int(random.uniform(0, w - cut_w))
 
-            insert_box = [to_location_w, to_location_h, to_location_w + cut_w, to_location_h + cut_h]
+            insert_box = [
+                to_location_w,
+                to_location_h,
+                to_location_w + cut_w,
+                to_location_h + cut_h,
+            ]
 
-            augmented.paste(patch,
-                            insert_box)  # The pasted image patch always origins from the same image it is pasted to
+            augmented.paste(
+                patch, insert_box
+            )  # The pasted image patch always origins from the same image it is pasted to
 
         return super().__call__(img, augmented)
 
@@ -249,9 +281,7 @@ class SwapPatch(CutPaste):
 
         # sample in log space
         log_ratio = torch.log(torch.tensor((self.aspect_ratio, 1 / self.aspect_ratio)))
-        aspect = torch.exp(
-            torch.empty(1).uniform_(log_ratio[0], log_ratio[1])
-        ).item()
+        aspect = torch.exp(torch.empty(1).uniform_(log_ratio[0], log_ratio[1])).item()
 
         cut_w = int(round(math.sqrt(ratio_area * aspect)))
         cut_h = int(round(math.sqrt(ratio_area / aspect)))
@@ -269,7 +299,9 @@ class SwapPatch(CutPaste):
         box2 = [0, to_location_h, w, to_location_h + cut_h]
         patch2 = img.crop(box2)
 
-        augmented.paste(patch1, box2)  # The pasted image patch always origins from the same image it is pasted to
+        augmented.paste(
+            patch1, box2
+        )  # The pasted image patch always origins from the same image it is pasted to
         augmented.paste(patch2, box1)
 
         return super().__call__(img, augmented)
@@ -300,7 +332,12 @@ class CutPasteScar(CutPaste):
         from_location_h = int(random.uniform(0, h - cut_h))
         from_location_w = int(random.uniform(0, w - cut_w))
 
-        box = [from_location_w, from_location_h, from_location_w + cut_w, from_location_h + cut_h]
+        box = [
+            from_location_w,
+            from_location_h,
+            from_location_w + cut_w,
+            from_location_h + cut_h,
+        ]
         patch = img.crop(box)
 
         if self.colorJitter:
@@ -351,7 +388,12 @@ class MultiCutPasteScar(CutPaste):
             from_location_h = int(random.uniform(0, h - cut_h))
             from_location_w = int(random.uniform(0, w - cut_w))
 
-            box = [from_location_w, from_location_h, from_location_w + cut_w, from_location_h + cut_h]
+            box = [
+                from_location_w,
+                from_location_h,
+                from_location_w + cut_w,
+                from_location_h + cut_h,
+            ]
             patch = img.crop(box)
 
             if self.colorJitter:
@@ -396,4 +438,3 @@ class CutPaste3Way(object):
         _, cutpaste_scar = self.scar(img)
 
         return org, cutpaste_normal, cutpaste_scar
-

@@ -29,7 +29,9 @@ class PANDA(BaseMethod):
                 imgs = imgs.to(self.args.device)
                 features = self.net.forward_features(imgs)
                 train_feature_space.append(features)
-            train_feature_space = torch.cat(train_feature_space, dim=0).contiguous().cpu().numpy()
+            train_feature_space = (
+                torch.cat(train_feature_space, dim=0).contiguous().cpu().numpy()
+            )
         center = torch.FloatTensor(train_feature_space).mean(dim=0)
         return center
 
@@ -46,13 +48,19 @@ class PANDA(BaseMethod):
         if self.scheduler:
             self.scheduler.step(epoch)
 
-    def training_epoch(self, density, one_epoch_embeds, task_wise_mean, task_wise_cov, task_wise_train_data_nums, t):
-        if self.args.eval.eval_classifier == 'density':
+    def training_epoch(
+        self,
+        density,
+        one_epoch_embeds,
+        task_wise_mean,
+        task_wise_cov,
+        task_wise_train_data_nums,
+        t,
+    ):
+        if self.args.eval.eval_classifier == "density":
             one_epoch_embeds = torch.cat(one_epoch_embeds)
             one_epoch_embeds = F.normalize(one_epoch_embeds, p=2, dim=1)
             _, _ = density.fit(one_epoch_embeds)
             return density
         else:
             pass
-
-

@@ -10,7 +10,9 @@ from models.vit_dne import ViT_DNE
 # ===========================================================
 # Helper: best threshold per task
 # ===========================================================
-def find_best_threshold(scores, labels, percentiles=(1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 99)):
+def find_best_threshold(
+    scores, labels, percentiles=(1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 99)
+):
     best_acc, best_thr = 0.0, scores.median().item()
     for p in percentiles:
         thr = np.percentile(scores.numpy(), p)
@@ -72,20 +74,27 @@ def plot_accuracy_heatmap(acc_matrix, save_path="./results/accuracy_matrix.png")
     max_len = max(len(row) for row in acc_matrix)
     padded = np.full((len(acc_matrix), max_len), np.nan)
     for i, row in enumerate(acc_matrix):
-        padded[i, :len(row)] = row
+        padded[i, : len(row)] = row
 
     plt.figure(figsize=(10, 8))
     sns.set(font_scale=0.9)
-    sns.heatmap(padded, annot=True, fmt=".2f", cmap="YlGnBu", linewidths=0.5,
-                cbar_kws={'label': 'Accuracy (%)'},
-                xticklabels=[f"T{i+1}" for i in range(max_len)],
-                yticklabels=[f"After T{i+1}" for i in range(len(acc_matrix))])
+    sns.heatmap(
+        padded,
+        annot=True,
+        fmt=".2f",
+        cmap="YlGnBu",
+        linewidths=0.5,
+        cbar_kws={"label": "Accuracy (%)"},
+        xticklabels=[f"T{i+1}" for i in range(max_len)],
+        yticklabels=[f"After T{i+1}" for i in range(len(acc_matrix))],
+    )
     plt.xlabel("Task Evaluated")
     plt.ylabel("After Training Task")
     plt.title("Continual Learning Accuracy Matrix (ViT + DNE)")
     plt.tight_layout()
 
     import os
+
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path)
     plt.close()
@@ -101,7 +110,9 @@ def main():
     torch.set_grad_enabled(False)
 
     print("\n[1] Loading MVTec dataset...")
-    train_tasks, test_tasks = get_mvtec_tasks(args.data_dir, image_size=224, batch_size=8)
+    train_tasks, test_tasks = get_mvtec_tasks(
+        args.data_dir, image_size=224, batch_size=8
+    )
 
     print(f"\n[2] Preparing model (ViT + DNE)...")
     model = ViT_DNE(device=str(device), freeze_backbone=True, pretrained_backbone=True)
@@ -120,7 +131,9 @@ def main():
 
         # Evaluate all tasks so far
         print("[Eval] Evaluating across all seen tasks...")
-        task_accuracies, avg_acc = evaluate_all_tasks(model, test_tasks, task_id, device)
+        task_accuracies, avg_acc = evaluate_all_tasks(
+            model, test_tasks, task_id, device
+        )
         accuracy_matrix.append(task_accuracies)
 
         print(f"✅ Finished Task {task_id+1}. Average accuracy: {avg_acc:.2f}%\n")

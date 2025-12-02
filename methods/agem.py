@@ -4,19 +4,19 @@ import torch
 import torch.nn as nn
 import numpy as np
 from .utils.base_method import BaseMethodwDNE
+
 try:
     import quadprog
 except:
-    print('Warning: GEM and A-GEM cannot be used on Windows (quadprog required)')
-
+    print("Warning: GEM and A-GEM cannot be used on Windows (quadprog required)")
 
 
 def store_grad(params, grads, grad_dims):
     """
-        This stores parameter gradients of past tasks.
-        pp: parameters
-        grads: gradients
-        grad_dims: list with number of parameters per layers
+    This stores parameter gradients of past tasks.
+    pp: parameters
+    grads: gradients
+    grad_dims: list with number of parameters per layers
     """
     # store the gradients
     grads.fill_(0.0)
@@ -24,25 +24,25 @@ def store_grad(params, grads, grad_dims):
     for param in params():
         if param.grad is not None:
             begin = 0 if count == 0 else sum(grad_dims[:count])
-            end = np.sum(grad_dims[:count + 1])
-            grads[begin: end].copy_(param.grad.data.view(-1))
+            end = np.sum(grad_dims[: count + 1])
+            grads[begin:end].copy_(param.grad.data.view(-1))
         count += 1
+
 
 def overwrite_grad(params, newgrad, grad_dims):
     """
-        This is used to overwrite the gradients with a new gradient
-        vector, whenever violations occur.
-        pp: parameters
-        newgrad: corrected gradient
-        grad_dims: list storing number of parameters at each layer
+    This is used to overwrite the gradients with a new gradient
+    vector, whenever violations occur.
+    pp: parameters
+    newgrad: corrected gradient
+    grad_dims: list storing number of parameters at each layer
     """
     count = 0
     for param in params():
         if param.grad is not None:
             begin = 0 if count == 0 else sum(grad_dims[:count])
-            end = sum(grad_dims[:count + 1])
-            this_grad = newgrad[begin: end].contiguous().view(
-                param.grad.data.size())
+            end = sum(grad_dims[: count + 1])
+            this_grad = newgrad[begin:end].contiguous().view(param.grad.data.size())
             param.grad.data.copy_(this_grad)
         count += 1
 
@@ -71,8 +71,7 @@ class AGEM(BaseMethodwDNE):
         cur_y = cur_y.repeat_interleave(cur_x[0].size(0))
         cur_x = torch.cat(cur_x, dim=0)
         self.buffer.add_data(
-            examples=cur_x.to(self.args.device),
-            labels=cur_y.to(self.args.device)
+            examples=cur_x.to(self.args.device), labels=cur_y.to(self.args.device)
         )
 
     def forward(self, epoch, inputs, labels, one_epoch_embeds, t, *args):

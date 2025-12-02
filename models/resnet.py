@@ -21,14 +21,9 @@ class ResNetModel(nn.Module):
             last_layer = num_neurons
 
         # the last layer without activation
-        head = nn.Sequential(
-            *sequential_layers
-        )
+        head = nn.Sequential(*sequential_layers)
         self.backbone.fc = nn.Identity()
-        self.head = nn.Sequential(
-            head,
-            nn.Linear(last_layer, num_classes)
-        )
+        self.head = nn.Sequential(head, nn.Linear(last_layer, num_classes))
         # self.head = head
         # self.out = nn.Linear(last_layer, num_classes)
 

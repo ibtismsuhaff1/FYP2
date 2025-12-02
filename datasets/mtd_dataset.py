@@ -7,12 +7,14 @@ import numpy as np
 import pandas as pd
 from collections import Iterable
 
+
 def flatten(items, ignore_types=(str, bytes)):
     for x in items:
         if isinstance(x, Iterable):
             yield from flatten(x)
         else:
             yield x
+
 
 class Repeat(Dataset):
     def __init__(self, org_dataset, new_length):
@@ -30,7 +32,9 @@ class Repeat(Dataset):
 class MTD(Dataset):
     """Face Landmarks dataset."""
 
-    def __init__(self, root_dir, size, require_mask=False, transform=None, mode="train"):
+    def __init__(
+        self, root_dir, size, require_mask=False, transform=None, mode="train"
+    ):
         """
         Args:
             root_dir (string): Directory with the MTD dataset.
@@ -44,18 +48,22 @@ class MTD(Dataset):
         self.mode = mode
         self.size = size
 
-
         if self.mode == "train":
             self.image_names = list((self.root_dir / "train" / "good").glob("*.jpg"))
             print("loading MTD images")
             # during training we cache the smaller images for performance reasons (not a good coding style)
-            self.imgs = (Parallel(n_jobs=10)(
-                delayed(lambda file: Image.open(file).resize((size, size)).convert("RGB"))(file) for file in
-                self.image_names))
+            self.imgs = Parallel(n_jobs=10)(
+                delayed(
+                    lambda file: Image.open(file).resize((size, size)).convert("RGB")
+                )(file)
+                for file in self.image_names
+            )
             print(f"loaded training set : {len(self.imgs)} images")
         else:
             # test mode
-            self.image_names = list((self.root_dir / "test").glob(str(Path("*") / "*.jpg")))
+            self.image_names = list(
+                (self.root_dir / "test").glob(str(Path("*") / "*.jpg"))
+            )
             self.gt_names = list((self.root_dir / "gt").glob(str(Path("*") / "*.png")))
 
     def __len__(self):

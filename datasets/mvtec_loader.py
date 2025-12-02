@@ -1,91 +1,73 @@
 import os
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
 from PIL import Image
-import random
+from torch.utils.data import Dataset
+from torchvision import transforms
+
 
 class MVTecDataset(Dataset):
-    """
-    Loads images for one MVTec AD category.
-    Each category = one continual learning task.
-    """
-    def __init__(self, root, category, split='train', transform=None):
-        self.root = root
-        self.category = category
-        self.split = split
-        self.transform = transform
+    def __init__(self, root, img_size=224):
+        """
+        root = path/to/data/mvtec/<category>/<train_or_test>/<class_name>
+        """
+        self.img_paths = []
+        self.labels = []
 
-        self.images = []
-        self.labels = []  # 0 = normal, 1 = anomaly
+        transform_list = [
+            transforms.Resize((img_size, img_size)),
+            transforms.ToTensor(),
+            transforms.Normalize([0.5], [0.5]),
+        ]
+        self.transform = transforms.Compose(transform_list)
 
-        category_path = os.path.join(root, category, split)
-        if not os.path.exists(category_path):
-            raise FileNotFoundError(f"Category path not found: {category_path}")
+        # Walk through all PNG/JPG files
+        for subdir, _, files in os.walk(root):
+            for f in files:
+                if f.endswith((".png", ".jpg", ".jpeg")):
+                    self.img_paths.append(os.path.join(subdir, f))
 
-        if split == 'train':
-            # Training: only normal ("good") samples
-            normal_path = os.path.join(category_path, 'good')
-            for img_name in os.listdir(normal_path):
-                img_path = os.path.join(normal_path, img_name)
-                self.images.append(img_path)
-                self.labels.append(0)
-        elif split == 'test':
-            # Testing: normal + anomaly samples
-            for defect_type in os.listdir(category_path):
-                defect_path = os.path.join(category_path, defect_type)
-                for img_name in os.listdir(defect_path):
-                    img_path = os.path.join(defect_path, img_name)
-                    label = 0 if defect_type == 'good' else 1
-                    self.images.append(img_path)
+                    # label = 0 for good, 1 for ALL anomaly types
+                    label = 0 if "good" in subdir.replace("\\", "/") else 1
                     self.labels.append(label)
-        else:
-            raise ValueError(f"Unknown split: {split}")
+
+        if len(self.img_paths) == 0:
+            raise ValueError(f"No images found in {root}")
 
     def __len__(self):
-        return len(self.images)
+        return len(self.img_paths)
 
     def __getitem__(self, idx):
-        img_path = self.images[idx]
+        img = Image.open(self.img_paths[idx]).convert("RGB")
+        img = self.transform(img)
         label = self.labels[idx]
-        image = Image.open(img_path).convert("RGB")
-        if self.transform:
-            image = self.transform(image)
-        return image, label
+        return img, label
 
 
-def get_mvtec_tasks(data_dir, image_size=224, batch_size=16, seed=42):
+def load_mvtec_all_categories(root="data/mvtec", img_size=224):
     """
-    Creates a continual learning task list — one per category.
-    Returns train and test DataLoaders for each category.
+    Automatically detects all 15 MVTec categories.
+    Creates separate train/test datasets for each category.
     """
-    random.seed(seed)
-    categories = sorted([
-        d for d in os.listdir(data_dir)
-        if os.path.isdir(os.path.join(data_dir, d))
-    ])
+    categories = sorted(
+        [d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d))]
+    )
 
-    print(f"[INFO] Found {len(categories)} categories in MVTec dataset.")
-    print("Categories:", categories)
+    if len(categories) == 0:
+        raise ValueError(f"No MVTec categories found inside: {root}")
 
-    transform = transforms.Compose([
-        transforms.Resize((image_size, image_size)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    ])
-
-    train_tasks, test_tasks = [], []
+    train_sets = {}
+    test_sets = {}
 
     for category in categories:
-        print(f"[TASK] Creating loaders for category: {category}")
+        train_root = os.path.join(root, category, "train")
+        test_root = os.path.join(root, category, "test")
 
-        train_dataset = MVTecDataset(data_dir, category, split='train', transform=transform)
-        test_dataset = MVTecDataset(data_dir, category, split='test', transform=transform)
+        if not os.path.isdir(train_root):
+            raise ValueError(f"MVTec train folder not found: {train_root}")
 
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        if not os.path.isdir(test_root):
+            raise ValueError(f"MVTec test folder not found: {test_root}")
 
-        train_tasks.append(train_loader)
-        test_tasks.append(test_loader)
+        train_sets[category] = MVTecDataset(train_root, img_size=img_size)
+        test_sets[category] = MVTecDataset(test_root, img_size=img_size)
 
-    print(f"[INFO] Created {len(train_tasks)} continual learning tasks.")
-    return train_tasks, test_tasks
+    return categories, train_sets, test_sets
