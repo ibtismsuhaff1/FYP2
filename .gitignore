@@ -3,37 +3,40 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.so
 
 # Virtual environments
 venv/
 venv310/
 .env/
 
-# IDE files
+# IDE
 .vscode/
 .idea/
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
-# Dataset folders (DO NOT PUSH DATA)
+# DATASETS (DO NOT PUSH)
 data/
 datasets/
+*/data/
+*/datasets/
 
-# Results & outputs
+# RESULTS & OUTPUT FILES
 results/
 outputs/
-*.npy
+runs/
 *.npz
+*.npy
 *.pth
+*.pt
+*.ckpt
 *.png
 *.jpg
-
-# Logs
-*.log
-logs/
+*.jpeg
+*.bmp
 
 # Cache
 .cache/
+logs/
