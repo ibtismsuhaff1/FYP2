@@ -1,42 +1,34 @@
 # Python
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
 
-# Virtual environments
+# Virtual environment
 venv/
-venv310/
-.env/
+env/
 
 # IDE
 .vscode/
 .idea/
 
-# OS
-.DS_Store
-Thumbs.db
-
-# DATASETS (DO NOT PUSH)
+# Datasets
 data/
 datasets/
-*/data/
-*/datasets/
+*.zip
+*.tar
+*.tar.gz
 
-# RESULTS & OUTPUT FILES
+# Model checkpoints & outputs
+checkpoints/
 results/
-outputs/
-runs/
-*.npz
-*.npy
-*.pth
 *.pt
+*.pth
 *.ckpt
-*.png
-*.jpg
-*.jpeg
-*.bmp
+*.npy
+*.npz
+
+# Logs
+logs/
+*.log
 
 # Cache
 .cache/
-logs/
