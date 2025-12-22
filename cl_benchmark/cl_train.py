@@ -1,7 +1,7 @@
 # cl_benchmark/cl_train.py
 """
 Training-based continual anomaly detection with CL methods:
-Finetune / Replay / EWC / LwF / GPM (stub)
+Finetune / Replay / EWC / LwF / GPM 
 
 - Tasks = 20 categories from MVTec + MVTec-LOCO
 - Each task is a binary classification: normal(0) vs anomaly(1)
@@ -151,6 +151,11 @@ def get_agent(method: str, model: nn.Module, cfg: dict):
 def train_one_epoch(model, loader, optimizer, criterion, agent, cfg, device):
     model.train()
     method = cfg["CL_METHOD"].lower()
+    gradient_buffer = {}
+
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            gradient_buffer[name] = []
 
     for data, target in loader:
         data, target = data.to(device), target.to(device)
@@ -158,26 +163,26 @@ def train_one_epoch(model, loader, optimizer, criterion, agent, cfg, device):
         # integrate replay samples
         if method == "replay":
             data, target = agent.integrate_replay(data, target)
-
         optimizer.zero_grad()
         outputs = model(data)
         loss = criterion(outputs, target)
-
         # EWC penalty
         if method == "ewc":
             loss = loss + agent.penalty()
-
         # LwF distillation
         if method == "lwf":
             loss = loss + agent.distillation_loss(data, outputs)
-
         loss.backward()
-
-        # GPM gradient projection (stub-safe)
+        # GPM: collect gradients
         if method == "gpm":
+            for name, param in model.named_parameters():
+                if param.grad is not None:
+                    gradient_buffer[name].append(
+                        param.grad.detach().clone()
+                    )
             agent.project_gradients()
-
         optimizer.step()
+    return gradient_buffer
 
 
 def evaluate(model, dataset, batch_size, device):
@@ -383,7 +388,6 @@ def run(cfg: dict):
 
     np.save(os.path.join(outdir, f"acc_matrix_{timestamp}.npy"), acc_arr)
     np.save(os.path.join(outdir, f"auc_matrix_{timestamp}.npy"), auc_arr)
-
     try:
         plot_heatmap(acc_arr, outdir, title=f"ACC ({cfg['CL_METHOD']})")
         plot_heatmap(auc_arr * 100.0, outdir, title=f"AUCx100 ({cfg['CL_METHOD']})")
@@ -403,8 +407,6 @@ def run(cfg: dict):
             [f"T{j+1}: {auc:.4f}" for j, auc in enumerate(row)]
         )
         print(f"After Task {i+1:2d}: [ {row_str} ]")
-
-    # return mean final ACC / AUC for comparison
     final_acc = np.mean(acc_matrix[-1])
     final_auc = np.mean(auc_matrix[-1])
     print(

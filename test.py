@@ -167,17 +167,13 @@ def main(args):
         results.append((f"{ds_type}/{cname}", auc))
         print(f"{ds_type}/{cname:25s} AUC = {auc:.4f}")
 
-    # ----------------------------------------------------------
     # SUMMARY
-    # ----------------------------------------------------------
     print("\n=== SUMMARY ===")
     for i, (name, auc) in enumerate(results):
         print(f"Class {i:02d} - {name}: AUC = {auc:.4f}")
 
 
-# ----------------------------------------------------------
 # CLI
-# ----------------------------------------------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--mem_dir", type=str, required=True)
