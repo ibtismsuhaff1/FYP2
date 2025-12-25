@@ -10,9 +10,8 @@ from PIL import Image
 from sklearn.metrics import roc_auc_score
 
 
-# ----------------------------------------------------------
 # 1. ResNet18 Pretrained Feature Extractor
-# ----------------------------------------------------------
+
 class ResNet18_Pretrained_Features(torch.nn.Module):
     def __init__(self, device):
         super().__init__()
@@ -26,10 +25,8 @@ class ResNet18_Pretrained_Features(torch.nn.Module):
         x = self.features(x)
         return x.view(x.size(0), -1)
 
-
-# ----------------------------------------------------------
 # 2. Image Preprocessing
-# ----------------------------------------------------------
+
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD  = (0.229, 0.224, 0.225)
 
@@ -40,9 +37,7 @@ TEST_TRANSFORM = transforms.Compose([
 ])
 
 
-# ----------------------------------------------------------
 # 3. Safe Image Loader
-# ----------------------------------------------------------
 def load_images(root):
     if not os.path.isdir(root):
         print(f"[WARN] Test folder does not exist: {root}")
@@ -65,10 +60,7 @@ def load_images(root):
 
     return torch.stack(imgs), torch.tensor(labels)
 
-
-# ----------------------------------------------------------
 # 4. Cosine-Distance Anomaly Score
-# ----------------------------------------------------------
 def anomaly_score(x, memory_bank):
     x = x / (x.norm(dim=1, keepdim=True) + 1e-8)
     mem = memory_bank / (memory_bank.norm(dim=1, keepdim=True) + 1e-8)
@@ -78,9 +70,7 @@ def anomaly_score(x, memory_bank):
     return score.cpu().numpy()
 
 
-# ----------------------------------------------------------
 # 5. MAIN TESTING PIPELINE
-# ----------------------------------------------------------
 def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"[INFO] Using device: {device}")
@@ -116,9 +106,7 @@ def main(args):
 
     print(f"[INFO] Evaluating with memory banks from: {args.mem_dir}")
 
-    # ----------------------------------------------------------
     # Evaluate each class using correct memory + correct dataset path
-    # ----------------------------------------------------------
     for task_id, (ds_type, cname) in enumerate(TASK_ORDER, start=1):
 
         # correct file name for memory

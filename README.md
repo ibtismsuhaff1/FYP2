@@ -1,140 +1,102 @@
-# Continual Anomaly Detection using ViT + DNE with Continual Learning (CL)
+# Continual Anomaly Detection using Vision Transformers and Continual Learning
 
 ## Overview
-This project implements a **Continual Anomaly Detection system** that can learn incrementally across industrial anomaly detection tasks without catastrophic forgetting.
+This project implements a **Continual Anomaly Detection (CAD) system** for industrial inspection scenarios, where anomaly detection models are trained sequentially across multiple tasks without catastrophic forgetting.
 
-It is built using:
-- **Vision Transformer (ViT)** as the backbone  
-- **DNE (Distribution Normalization Embedding)** anomaly detection method  
-- **Continual Learning (CL)** strategies  
-- **MVTec AD + LOCO** datasets  
+The system integrates:
+- Vision-based feature extractors (ResNet18 / Vision Transformer)
+- Distribution Normalization Embedding (DNE) for anomaly scoring
+- Continual Learning (CL) strategies
+- MVTec AD + MVTec-LOCO datasets
 
-The system evaluates AUC, accuracy degradation, and CL memory performance.
+A complete benchmarking and visualization pipeline is provided.
 
 ---
 
 ## Objectives
-1. Train anomaly detection sequentially across tasks  
-2. Prevent catastrophic forgetting using CL  
-3. Integrate **GPM memory** + DNE normalization  
-4. Log performance metrics (AUC, accuracy matrix)  
-5. Produce anomaly visualizations  
+1. Perform anomaly detection in a continual learning setting  
+2. Mitigate catastrophic forgetting  
+3. Integrate DNE-based anomaly memory  
+4. Support multiple CL strategies  
+5. Log task-wise accuracy and AUC  
+6. Visualize benchmarking results using a GUI  
 
 ---
 
 ## Datasets
-### **MVTec AD**
-Examples:
-- Hazelnut  
-- Zipper  
-- Screw  
-- Leather  
-- Transistor  
+### MVTec AD
+Hazelnut, Zipper, Screw, Leather, Transistor, Capsule, Tile, Bottle, Carpet
 
-### **LOCO**
-- Splicing connectors  
-- Breakfast box  
-- Screw bag  
-- Pushpins  
+### MVTec-LOCO
+Splicing connectors, Breakfast box, Screw bag, Pushpins, Juice bottle
 
-Dataset structure:
+Expected structure:
 ```
 data/
-   mvtec/
-   loco/
+├── mvtec/
+└── mvtec-loco/
 ```
 
 ---
 
 ## Methodology
-
-### 🔸 Vision Transformer (ViT)
-Extracts high-dimensional patch embeddings.
-
-### 🔸 DNE
-Normalizes distributions to stabilize anomaly scoring across tasks.
-
-### 🔸 Continual Learning Loop
-```
-Task i → Train → Extract Features → DNE → Save Memory → Evaluate
-```
-
-### 🔸 GPM Memory
-Stores gradient subspaces to prevent forgetting.
+- Backbone: ResNet18 (pretrained) or Vision Transformer
+- DNE for anomaly memory
+- Sequential task training
+- Continual Learning strategies: Finetune, Replay, EWC, LwF, GPM
 
 ---
 
-## Evaluation
-Metrics:
-- **AUC per class**
-- **Accuracy (%)**
-- **Accuracy matrix** (task-wise retention)
-
-Example:
-```
-mvtec/hazelnut   AUC = 0.9554
-loco/pushpins    AUC = 0.6085
-```
+## Evaluation Metrics
+- AUC per task
+- Task-wise Accuracy
+- Accuracy & AUC matrices
+- Forgetting analysis
 
 ---
 
 ## Project Structure
 ```
-configs/
-methods/
-models/
-utils/
-data/            # ignored
-results/         # ignored
-argument.py
-eval.py
-main.py
-README.md
+cl_benchmark/
+├── agents/
+├── loaders/
+├── utils/
+├── cl_train.py
+├── test.py
+├── config.yaml
+
+gui/
+└── app.py
+
+results/
+└── mvtec+loco/CL/
 ```
 
 ---
 
-## Running Training
+## Training
 ```
-python main.py --config configs/mvtec_loco.yaml
+python -m cl_benchmark.cl_train --config cl_benchmark/config.yaml
 ```
 
-## Running Evaluation
+## Evaluation
 ```
-python eval.py --mem_dir results/mvtec+loco/Anomaly
+python test.py --mem_dir results/mvtec+loco/CL/finetune_resnet18_pretrained
 ```
 
 ---
 
-## Benchmarking
-Supports comparison with:
-- EWC  
-- SI  
-- Replay  
-- LwF  
-- GPM  
-- Joint training baseline  
+## GUI Benchmarking
+```
+streamlit run gui/app.py
+```
 
 ---
 
 ## Requirements
-- Python 3.9+
-- PyTorch 2.x
-- timm
-- numpy
-- scikit-learn
-- matplotlib
-
-Install:
-```
-pip install -r requirements.txt
-```
+See requirements.txt
 
 ---
 
 ## Author
-**Numaan Suhaff**
-
----
-
-## ⭐ Star the repo if you find it helpful!
+Numaan Suhaff

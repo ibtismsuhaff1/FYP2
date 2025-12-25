@@ -7,9 +7,7 @@ import re
 import os
 
 
-# ============================================================
 # Recursive Namespace Helper
-# ============================================================
 class Namespace(object):
     """Recursively converts dictionaries into accessible namespaces."""
 
@@ -30,9 +28,7 @@ class Namespace(object):
         )
 
 
-# ============================================================
 # Deterministic Seed
-# ============================================================
 def set_deterministic(seed: int):
     """Ensure deterministic results by fixing all random seeds."""
     if seed is not None:
@@ -45,9 +41,7 @@ def set_deterministic(seed: int):
         torch.backends.cudnn.benchmark = False
 
 
-# ============================================================
 # String → Boolean Helper
-# ============================================================
 def str2bool(v):
     """Converts common string inputs to boolean."""
     if isinstance(v, bool):
@@ -55,17 +49,13 @@ def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
 
 
-# ============================================================
 # Main Argument Parser
-# ============================================================
 def get_args():
     parser = argparse.ArgumentParser(
         description="Continual Anomaly Detection Benchmark"
     )
 
-    # -----------------------------------------------------------
     # Core paths and devices
-    # -----------------------------------------------------------
     parser.add_argument(
         "--config-file",
         default="./configs/cad.yaml",
@@ -79,9 +69,7 @@ def get_args():
         help="Device to use for training (cuda or cpu)",
     )
 
-    # -----------------------------------------------------------
     # Model / checkpoints / misc
-    # -----------------------------------------------------------
     parser.add_argument(
         "--save_checkpoint",
         type=str2bool,
@@ -100,9 +88,7 @@ def get_args():
 
     args = parser.parse_args()
 
-    # -----------------------------------------------------------
     # Load YAML config
-    # -----------------------------------------------------------
     try:
         with open(args.config_file, "r") as f:
             yaml_data = yaml.safe_load(f)
@@ -117,9 +103,7 @@ def get_args():
     for key, value in config_namespace.__dict__.items():
         vars(args)[key] = value
 
-    # -----------------------------------------------------------
     # Handle multiple datasets
-    # -----------------------------------------------------------
     if not hasattr(args, "datasets"):
         raise ValueError("Your YAML config must include a 'datasets:' list.")
 
@@ -131,13 +115,11 @@ def get_args():
         n_tasks = ds.get("n_tasks", "N/A")
 
         if not os.path.exists(path):
-            print(f"  ⚠️  Warning: Dataset path not found for '{name}' → {path}")
+            print(f"  Warning: Dataset path not found for '{name}' → {path}")
         else:
-            print(f"  ✅ {name} → {path} ({n_tasks} tasks)")
+            print(f"  {name} → {path} ({n_tasks} tasks)")
 
-    # -----------------------------------------------------------
     # Set deterministic behavior and display info
-    # -----------------------------------------------------------
     set_deterministic(args.seed)
     print(f"\n[Device] Using device: {args.device}")
     print("=" * 60)
@@ -147,9 +129,7 @@ def get_args():
     return args
 
 
-# ============================================================
 # Entry Point (for quick standalone test)
-# ============================================================
 if __name__ == "__main__":
     args = get_args()
     print("\n=== Loaded Arguments ===")

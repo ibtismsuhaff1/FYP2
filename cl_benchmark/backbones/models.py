@@ -5,9 +5,7 @@ from torchvision import models
 from collections import OrderedDict
 
 
-# =========================================================
 # BaseModel (provides expand_output_layer, classifier logic)
-# =========================================================
 class BaseModel(nn.Module):
     def __init__(self):
         super().__init__()
@@ -54,9 +52,7 @@ class BaseModel(nn.Module):
         self.classifier = new_fc
 
 
-# =========================================================
 # SimpleCNN
-# =========================================================
 class SimpleCNN(BaseModel):
     def __init__(self, input_channels=1):
         super().__init__()
@@ -75,9 +71,7 @@ class SimpleCNN(BaseModel):
         )
 
 
-# =========================================================
 # ResNet18 (no pretrained weights)
-# =========================================================
 class ResNet18(BaseModel):
     def __init__(self, input_channels=3):
         super().__init__()
@@ -91,9 +85,7 @@ class ResNet18(BaseModel):
         self.fc_input_features = net.fc.in_features
 
 
-# =========================================================
 # ResNet18_pretrained (ImageNet)
-# =========================================================
 class ResNet18_pretrained(BaseModel):
     def __init__(self, input_channels=3):
         super().__init__()
@@ -130,9 +122,7 @@ class ResNet18_pretrained(BaseModel):
         return self.classifier(x)
 
 
-# =========================================================
 # ViTExtractor (patch-level features)
-# =========================================================
 class ViTExtractor(nn.Module):
     def __init__(self, pretrained=True, image_size=224, patch_size=16, device="cpu"):
         super().__init__()

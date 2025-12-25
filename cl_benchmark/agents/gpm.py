@@ -1,64 +1,55 @@
-# cl_benchmark/agents/gpm.py
-
 import torch
-import numpy as np
+from collections import defaultdict
 
 
 class GPMAgent:
     """
-    Full Gradient Projection Memory (GPM) implementation.
+    Gradient Projection Memory (GPM)
+    Saha et al., ICLR 2021
 
-    Reference:
-    Saha et al., "Gradient Projection Memory for Continual Learning", ICLR 2021
-
-    This implementation:
-    - Collects gradients after each task
-    - Computes an orthogonal basis using SVD
-    - Projects future gradients to prevent catastrophic forgetting
+    Framework-compatible implementation.
     """
 
     def __init__(self, model, cfg):
         self.model = model
         self.cfg = cfg
-
         self.device = next(model.parameters()).device
+
         self.threshold = cfg.get("gpm_threshold", 0.97)
-
         self.task_id = 0
-        self.basis = {}   # layer_name -> orthogonal basis (torch.Tensor)
 
-    # ---------------------------------------------------
-    # 1. Called BEFORE training each task
-    # ---------------------------------------------------
+        self.basis = {}  # layer_name -> orthogonal basis
+        self.gradients = defaultdict(list)  # temp storage
+
+    # Called BEFORE each task
     def before_task(self):
-        pass
+        self.gradients.clear()
 
-    # ---------------------------------------------------
-    # 2. Called AFTER finishing training a task
-    # ---------------------------------------------------
-    def after_task(self, gradient_list):
-        """
-        gradient_list: list of gradients collected during training
-        """
-        print(f"[GPM] Extracting subspace for task {self.task_id}")
+    # Called DURING backward pass
+    def collect_gradients(self):
+        for name, param in self.model.named_parameters():
+            if param.grad is not None:
+                self.gradients[name].append(param.grad.detach().clone())
 
-        for name, grad_mat in gradient_list.items():
-            grad_mat = grad_mat.to(self.device)
+    # Called AFTER each task
+    def after_task(self, train_loader=None, device=None):
+        print(f"[GPM] Building subspace for task {self.task_id}")
 
-            # Flatten gradients: [num_samples, num_params]
-            grad_mat = grad_mat.view(grad_mat.size(0), -1)
+        for name, grads in self.gradients.items():
+            if len(grads) == 0:
+                continue
 
-            # Compute SVD
-            U, S, Vh = torch.linalg.svd(grad_mat, full_matrices=False)
+            G = torch.stack(grads).to(self.device)
+            G = G.view(G.size(0), -1)
 
-            # Energy threshold
-            energy = torch.cumsum(S ** 2, dim=0) / torch.sum(S ** 2)
-            r = torch.sum(energy < self.threshold).item() + 1
+            # SVD
+            U, S, _ = torch.linalg.svd(G, full_matrices=False)
 
+            energy = torch.cumsum(S**2, dim=0) / torch.sum(S**2)
+            r = int((energy < self.threshold).sum()) + 1
             basis_new = U[:, :r]
 
             if name in self.basis:
-                # Merge with existing basis
                 B = torch.cat([self.basis[name], basis_new], dim=1)
                 U2, _, _ = torch.linalg.svd(B, full_matrices=False)
                 self.basis[name] = U2[:, :r]
@@ -67,25 +58,16 @@ class GPMAgent:
 
         self.task_id += 1
 
-    # ---------------------------------------------------
-    # 3. Called DURING backward pass
-    # ---------------------------------------------------
+    # Gradient projection
     def project_gradients(self):
-        """
-        Projects gradients to be orthogonal to stored subspaces
-        """
         if not self.basis:
             return
 
         for name, param in self.model.named_parameters():
-            if param.grad is None:
-                continue
-            if name not in self.basis:
+            if param.grad is None or name not in self.basis:
                 continue
 
-            grad = param.grad.view(-1, 1)
-            B = self.basis[name].to(grad.device)
-
-            # Projection: g = g - BB^T g
-            proj = B @ (B.t() @ grad)
-            param.grad.copy_((grad - proj).view_as(param.grad))
+            g = param.grad.view(-1, 1)
+            B = self.basis[name].to(g.device)
+            proj = B @ (B.t() @ g)
+            param.grad.copy_((g - proj).view_as(param.grad))

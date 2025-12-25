@@ -28,10 +28,7 @@ from cl_benchmark.utils.metrics_io import (
     plot_heatmap,
     compute_auc_safe,
 )
-
-# -------------------------
 # DEFAULT CONFIG
-# -------------------------
 DEFAULT_CFG = {
     "BACKBONE": "ResNet18_pretrained",
     "DEVICE": "cuda" if torch.cuda.is_available() else "cpu",
@@ -47,9 +44,7 @@ DEFAULT_CFG = {
     "OUTDIR": "results/mvtec+loco/Anomaly",
 }
 
-# -------------------------
 # Utilities
-# -------------------------
 def set_seed(seed: int):
     random.seed(seed)
     np.random.seed(seed)
@@ -165,9 +160,7 @@ def compute_anomaly_scores_from_memory(model, dataset, memory_vectors, cfg, devi
     return scores, labels
 
 
-# -------------------------
 # MAIN
-# -------------------------
 def run(cfg: dict):
     set_seed(cfg["SEED"])
     device = normalize_device(cfg["DEVICE"])
@@ -263,9 +256,7 @@ def run(cfg: dict):
     return auc_matrix
 
 
-# -------------------------
 # CLI
-# -------------------------
 def parse_overrides(kv_list):
     out = {}
     for item in kv_list or []:

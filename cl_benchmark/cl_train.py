@@ -46,10 +46,7 @@ from cl_benchmark.utils.metrics_io import (
     compute_auc_safe,
 )
 
-
-# -------------------------
 # DEFAULT CONFIG
-# -------------------------
 DEFAULT_CFG = {
     "BACKBONE": "ResNet18_pretrained",
     "CL_METHOD": "Finetune",          # Finetune / Replay / EWC / LwF / GPM
@@ -83,9 +80,7 @@ DEFAULT_CFG = {
 }
 
 
-# -------------------------
 # Utilities
-# -------------------------
 def set_seed(seed: int):
     random.seed(seed)
     np.random.seed(seed)
@@ -145,9 +140,7 @@ def get_agent(method: str, model: nn.Module, cfg: dict):
     raise ValueError(f"Unknown CL_METHOD: {method}")
 
 
-# -------------------------
 # Train / Eval loops
-# -------------------------
 def train_one_epoch(model, loader, optimizer, criterion, agent, cfg, device):
     model.train()
     method = cfg["CL_METHOD"].lower()
@@ -184,6 +177,10 @@ def train_one_epoch(model, loader, optimizer, criterion, agent, cfg, device):
         optimizer.step()
     return gradient_buffer
 
+def after_task(self, train_loader, device):
+    # collect gradients inside here
+    method = self.cfg["CL_METHOD"].lower()
+    if method != "gpm": return
 
 def evaluate(model, dataset, batch_size, device):
     """
@@ -220,9 +217,7 @@ def evaluate(model, dataset, batch_size, device):
     return acc, auc, scores_all, labels_all
 
 
-# -------------------------
 # RUN (one CL_METHOD + one BACKBONE)
-# -------------------------
 def run(cfg: dict):
     set_seed(cfg["SEED"])
     device = normalize_device(cfg["DEVICE"])
@@ -416,9 +411,7 @@ def run(cfg: dict):
     return final_acc, final_auc
 
 
-# -------------------------
 # CLI
-# -------------------------
 def parse_overrides(kv_list):
     out = {}
     for item in kv_list or []:
@@ -456,3 +449,4 @@ if __name__ == "__main__":
 
     cfg["DEVICE"] = normalize_device(cfg.get("DEVICE", cfg["DEVICE"]))
     run(cfg)
+
