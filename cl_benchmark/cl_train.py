@@ -1,13 +1,4 @@
-# cl_benchmark/cl_train.py
-"""
-Training-based continual anomaly detection with CL methods:
-Finetune / Replay / EWC / LwF / GPM 
-
-- Tasks = 20 categories from MVTec + MVTec-LOCO
-- Each task is a binary classification: normal(0) vs anomaly(1)
-- Backbone: SimpleCNN / ResNet18 / ResNet18_pretrained
-- CL_METHOD controls how weights are updated across tasks
-"""
+# cl_benchmark/cl_train.py  — FIXED VERSION (TRUE INCREMENTAL MEMORY + BWT SAFE)
 
 import os
 import random
@@ -46,10 +37,13 @@ from cl_benchmark.utils.metrics_io import (
     compute_auc_safe,
 )
 
+# =========================
 # DEFAULT CONFIG
+# =========================
+
 DEFAULT_CFG = {
     "BACKBONE": "ResNet18_pretrained",
-    "CL_METHOD": "Finetune",          # Finetune / Replay / EWC / LwF / GPM
+    "CL_METHOD": "Finetune",
     "OPTIMIZER": "SGD",
     "SGD_LR": 0.003,
     "ADAM_LR": 0.0005,
@@ -79,8 +73,10 @@ DEFAULT_CFG = {
     "OUTDIR_ROOT": "results/mvtec+loco/CL",
 }
 
-
+# =========================
 # Utilities
+# =========================
+
 def set_seed(seed: int):
     random.seed(seed)
     np.random.seed(seed)
@@ -101,14 +97,6 @@ def normalize_device(device_cfg):
 
 
 def set_binary_classifier(model, num_outputs=2):
-    """
-    Replace or initialize model.classifier to have `num_outputs` outputs.
-    Assumes the backbone exposes:
-      - model.features
-      - model.fc_input_features
-    """
-
-    # If fc_input_features unknown, infer with a dummy forward
     if getattr(model, "fc_input_features", 0) == 0:
         device = next(model.parameters()).device
         model.eval()
@@ -120,7 +108,6 @@ def set_binary_classifier(model, num_outputs=2):
 
     model.num_classes = num_outputs
     new_fc = nn.Linear(model.fc_input_features, num_outputs)
-
     device = next(model.parameters()).device
     model.classifier = new_fc.to(device)
 
@@ -139,8 +126,10 @@ def get_agent(method: str, model: nn.Module, cfg: dict):
         return GPMAgent(model, cfg)
     raise ValueError(f"Unknown CL_METHOD: {method}")
 
-
+# =========================
 # Train / Eval loops
+# =========================
+
 def train_one_epoch(model, loader, optimizer, criterion, agent, cfg, device):
     model.train()
     method = cfg["CL_METHOD"].lower()
@@ -153,20 +142,21 @@ def train_one_epoch(model, loader, optimizer, criterion, agent, cfg, device):
     for data, target in loader:
         data, target = data.to(device), target.to(device)
 
-        # integrate replay samples
         if method == "replay":
             data, target = agent.integrate_replay(data, target)
+
         optimizer.zero_grad()
         outputs = model(data)
         loss = criterion(outputs, target)
-        # EWC penalty
+
         if method == "ewc":
             loss = loss + agent.penalty()
-        # LwF distillation
+
         if method == "lwf":
             loss = loss + agent.distillation_loss(data, outputs)
+
         loss.backward()
-        # GPM: collect gradients
+
         if method == "gpm":
             for name, param in model.named_parameters():
                 if param.grad is not None:
@@ -174,20 +164,12 @@ def train_one_epoch(model, loader, optimizer, criterion, agent, cfg, device):
                         param.grad.detach().clone()
                     )
             agent.project_gradients()
+
         optimizer.step()
     return gradient_buffer
 
-def after_task(self, train_loader, device):
-    # collect gradients inside here
-    method = self.cfg["CL_METHOD"].lower()
-    if method != "gpm": return
 
 def evaluate(model, dataset, batch_size, device):
-    """
-    Evaluate both:
-      - Accuracy (%)
-      - AUC (using probability of anomaly class = 1)
-    """
     model.eval()
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
@@ -205,25 +187,53 @@ def evaluate(model, dataset, batch_size, device):
             correct += (pred == target).sum().item()
             total += data.size(0)
 
-            # anomaly score = probability of class 1
             if prob.size(1) >= 2:
                 scores_all.extend(prob[:, 1].cpu().numpy().tolist())
             else:
                 scores_all.extend(prob[:, 0].cpu().numpy().tolist())
+
             labels_all.extend(target.cpu().numpy().tolist())
 
     acc = 100.0 * correct / max(total, 1)
     auc = compute_auc_safe(scores_all, labels_all)
     return acc, auc, scores_all, labels_all
 
+# ==========================================================
+# FIXED: BUILD MEMORY BANK (PROTOTYPE) FOR A TASK
+# ==========================================================
 
-# RUN (one CL_METHOD + one BACKBONE)
+def build_memory_bank(model, dataset, batch_size, device):
+    model.eval()
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+
+    features = []
+
+    with torch.no_grad():
+        for data, target in loader:
+            data = data.to(device)
+            feats = model.features(data)
+            feats = feats.view(feats.size(0), -1)
+
+            # keep only NORMAL samples (label 0)
+            normal_feats = feats[target == 0]
+            if normal_feats.numel() > 0:
+                features.append(normal_feats.cpu().numpy())
+
+    if len(features) == 0:
+        return None
+
+    features = np.concatenate(features, axis=0)
+    return features.mean(axis=0, keepdims=True)  # single prototype vector
+
+# ==========================================================
+# RUN
+# ==========================================================
+
 def run(cfg: dict):
     set_seed(cfg["SEED"])
     device = normalize_device(cfg["DEVICE"])
     cfg["DEVICE"] = device
 
-    # datasets
     mvtec_classes, mvtec_train, mvtec_test = load_mvtec_all_categories(cfg["MVT_ROOT"])
     loco_classes, loco_train, loco_test = load_mvtec_loco_all_categories(cfg["MVT_LOCO_ROOT"])
 
@@ -233,7 +243,6 @@ def run(cfg: dict):
     for c in loco_classes:
         all_categories.append(("loco", c))
 
-    # fixed order for reproducibility
     random.seed(cfg["SEED"])
     random.shuffle(all_categories)
 
@@ -241,7 +250,6 @@ def run(cfg: dict):
     for i, (t, c) in enumerate(all_categories):
         print(f"  Task {i+1}: {t}/{c}")
 
-    # model
     backbone = cfg["BACKBONE"].lower()
     if backbone == "simplecnn":
         model = SimpleCNN(input_channels=3).to(device)
@@ -252,38 +260,29 @@ def run(cfg: dict):
     else:
         raise ValueError(f"Unknown BACKBONE: {cfg['BACKBONE']}")
 
-    # we want the backbone to be trainable now
     for p in model.features.parameters():
         p.requires_grad = True
 
-    # binary classifier
     set_binary_classifier(model, num_outputs=2)
-
-    # agent
     agent = get_agent(cfg["CL_METHOD"], model, cfg)
 
-    # output dir
     method_tag = cfg["CL_METHOD"].lower()
     backbone_tag = backbone
-    outdir = os.path.join(
-        cfg["OUTDIR_ROOT"], f"{method_tag}_{backbone_tag}"
-    )
+    outdir = os.path.join(cfg["OUTDIR_ROOT"], f"{method_tag}_{backbone_tag}")
     ensure_dir(outdir)
-
-    print(
-        f"[INFO] Using BACKBONE={cfg['BACKBONE']}, CL_METHOD={cfg['CL_METHOD']}, "
-        f"OPTIMIZER={cfg['OPTIMIZER']}, DEVICE={device}"
-    )
 
     criterion = nn.CrossEntropyLoss()
     acc_matrix = []
     auc_matrix = []
 
-    # sequential tasks
+    # ===== KEEP TRACK OF ALL SEEN TRAIN DATASETS (CRUCIAL FIX) =====
+    seen_train_datasets = []
+    seen_task_names = []
+
+    # ===== SEQUENTIAL TASKS =====
     for t_id, (ds_type, cname) in enumerate(all_categories):
         print(f"\n===== Training Task {t_id+1}/{len(all_categories)} ({ds_type}/{cname}) =====")
 
-        # pick dataset
         if ds_type == "mvtec":
             train_ds = mvtec_train[cname]
             test_ds = mvtec_test[cname]
@@ -291,11 +290,11 @@ def run(cfg: dict):
             train_ds = loco_train[cname]
             test_ds = loco_test[cname]
 
-        train_loader = DataLoader(
-            train_ds, batch_size=cfg["BATCH_SIZE"], shuffle=True
-        )
+        seen_train_datasets.append(train_ds)
+        seen_task_names.append((ds_type, cname))
 
-        # optimizer only on trainable params
+        train_loader = DataLoader(train_ds, batch_size=cfg["BATCH_SIZE"], shuffle=True)
+
         params = [p for p in model.parameters() if p.requires_grad]
 
         if cfg["OPTIMIZER"].lower() == "sgd":
@@ -310,7 +309,6 @@ def run(cfg: dict):
                 params, lr=cfg["ADAM_LR"], weight_decay=cfg["WEIGHT_DECAY"]
             )
 
-        # before_task hook
         if hasattr(agent, "before_task"):
             agent.before_task()
 
@@ -319,12 +317,10 @@ def run(cfg: dict):
                 model, train_loader, optimizer, criterion, agent, cfg, device
             )
 
-        # after_task hook for agents
         method = cfg["CL_METHOD"].lower()
         if method == "replay":
             agent.after_task(train_ds)
         elif method == "ewc":
-            # pass a small loader for fisher estimate
             fisher_loader = DataLoader(
                 train_ds,
                 batch_size=min(64, len(train_ds)),
@@ -334,13 +330,13 @@ def run(cfg: dict):
         elif method == "lwf":
             agent.after_task()
         elif method == "gpm":
-            # stub: no-op or future extension
             agent.after_task(train_loader, device)
 
-        # evaluation on all seen tasks
+        # ===== EVALUATE ALL SEEN TASKS =====
         row_acc, row_auc = [], []
         for eval_id in range(t_id + 1):
             e_type, e_name = all_categories[eval_id]
+
             if e_type == "mvtec":
                 eval_ds = mvtec_test[e_name]
             else:
@@ -353,25 +349,36 @@ def run(cfg: dict):
             row_acc.append(acc)
             row_auc.append(auc)
 
-            save_task_output(
-                outdir, t_id + 1, eval_id + 1, scores, labels
-            )
+            save_task_output(outdir, t_id + 1, eval_id + 1, scores, labels)
+
             print(f"  Task {eval_id+1:2d} ({e_type}/{e_name}): ACC={acc:.2f}%  AUC={auc:.4f}")
 
         acc_matrix.append(row_acc)
         auc_matrix.append(row_auc)
-        print(
-            f" -> Avg ACC over seen tasks: {np.mean(row_acc):.2f}% | "
-            f"Avg AUC: {np.mean(row_auc):.4f}"
-        )
 
-        # save intermediate model
+        # ===== 🔥 CRUCIAL FIX: SAVE MEMORY FOR ALL SEEN TASKS (NOT JUST CURRENT) =====
+        for mem_id, (m_type, m_name) in enumerate(seen_task_names):
+            mem_vec = build_memory_bank(
+                model,
+                seen_train_datasets[mem_id],
+                cfg["BATCH_SIZE"],
+                device,
+            )
+
+            if mem_vec is not None:
+                mem_path = os.path.join(
+                    outdir,
+                    f"memory_task_{t_id+1}_{m_type}_{m_name}.npz"
+                )
+                np.savez(mem_path, memory=mem_vec)
+                print(f"[INFO] Saved memory -> {mem_path}")
+
         torch.save(
             model.state_dict(),
             os.path.join(outdir, f"model_after_task_{t_id+1}.pth"),
         )
 
-    # save matrices
+    # ===== SAVE MATRICES =====
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     acc_arr = np.zeros((len(acc_matrix), len(acc_matrix)))
     auc_arr = np.zeros_like(acc_arr)
@@ -383,35 +390,26 @@ def run(cfg: dict):
 
     np.save(os.path.join(outdir, f"acc_matrix_{timestamp}.npy"), acc_arr)
     np.save(os.path.join(outdir, f"auc_matrix_{timestamp}.npy"), auc_arr)
+
     try:
         plot_heatmap(acc_arr, outdir, title=f"ACC ({cfg['CL_METHOD']})")
         plot_heatmap(auc_arr * 100.0, outdir, title=f"AUCx100 ({cfg['CL_METHOD']})")
     except Exception as e:
         print("[WARN] heatmap failed:", e)
 
-    print("\n=== FINAL RESULTS (ACC) ===")
-    for i, row in enumerate(acc_matrix):
-        row_str = " | ".join(
-            [f"T{j+1}: {acc:.2f}%" for j, acc in enumerate(row)]
-        )
-        print(f"After Task {i+1:2d}: [ {row_str} ]")
-
-    print("\n=== FINAL RESULTS (AUC) ===")
-    for i, row in enumerate(auc_matrix):
-        row_str = " | ".join(
-            [f"T{j+1}: {auc:.4f}" for j, auc in enumerate(row)]
-        )
-        print(f"After Task {i+1:2d}: [ {row_str} ]")
     final_acc = np.mean(acc_matrix[-1])
     final_auc = np.mean(auc_matrix[-1])
+
     print(
         f"\n[SUMMARY] {cfg['CL_METHOD']} + {cfg['BACKBONE']}: "
         f"Final mean ACC={final_acc:.2f}% | Final mean AUC={final_auc:.4f}"
     )
     return final_acc, final_auc
 
-
+# ==========================================================
 # CLI
+# ==========================================================
+
 def parse_overrides(kv_list):
     out = {}
     for item in kv_list or []:
@@ -449,4 +447,3 @@ if __name__ == "__main__":
 
     cfg["DEVICE"] = normalize_device(cfg.get("DEVICE", cfg["DEVICE"]))
     run(cfg)
-

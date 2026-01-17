@@ -17,7 +17,7 @@ OUTDIR_ROOT: "results/mvtec+loco/CL"
 # continual learning training settings
 CL_METHOD: "gpm"
 OPTIMIZER: "SGD"
-EPOCHS_PER_TASK: 10
+EPOCHS_PER_TASK: 1
 
 SGD_LR: 0.003
 SGD_MOMENTUM: 0.9
