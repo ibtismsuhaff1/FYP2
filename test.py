@@ -246,7 +246,7 @@ def main(args):
     print(f"\nOverall BWT = {overall_bwt:.2f}")
 
     # =====================================================
-    # SAVE RESULTS (NOW INSIDE mem_dir ✅)
+    # SAVE RESULTS (NOW INSIDE mem_dir FOLDER)
     # =====================================================
 
     np.save(os.path.join(args.mem_dir, "acc_matrix.npy"), acc_matrix)

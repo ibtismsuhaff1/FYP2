@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+import pandas as pd
 
 # =========================
 # STREAMLIT PAGE SETUP
@@ -32,7 +33,7 @@ st.markdown(
 )
 
 # =========================
-# CONFIGURATION
+# CONFIGURATION (YOUR PATH)
 # =========================
 RESULTS_ROOT = Path("results/mvtec+loco/CL")
 
@@ -52,7 +53,7 @@ st.sidebar.title("⚙️ Benchmark Settings")
 method_name = st.sidebar.selectbox(
     "Continual Learning Method",
     list(METHODS.keys()),
-    help="Select which CL method to visualize for curves & heatmap",
+    help="Select which CL method to visualize",
 )
 
 metric = st.sidebar.radio("Metric", ["Accuracy", "AUC"])
@@ -63,36 +64,33 @@ st.sidebar.markdown("**Dataset:** MVTec + LOCO")
 st.sidebar.markdown("**Tasks:** 20")
 
 # =========================
-# LOAD LATEST MATRICES
+# LOAD FILES (FIXED FOR YOUR OUTPUT NAMES)
 # =========================
-def load_latest_matrix(method_key, prefix):
+def load_matrix(method_key, prefix):
     method_dir = RESULTS_ROOT / METHODS[method_key]
-    files = sorted(method_dir.glob(f"{prefix}_matrix_*.npy"))
-    if not files:
-        return None
-    return np.load(files[-1])
 
-# Load only for selected method (for curves & heatmap)
-acc_matrix = load_latest_matrix(method_name, "acc")
-auc_matrix = load_latest_matrix(method_name, "auc")
+    file_path = method_dir / f"{prefix}_matrix.npy"
+
+    if not file_path.exists():
+        return None
+
+    return np.load(file_path)
+
+def load_bwt(method_key):
+    method_dir = RESULTS_ROOT / METHODS[method_key]
+    file_path = method_dir / "bwt_scores.npy"
+
+    if not file_path.exists():
+        return None
+
+    return np.load(file_path)
+
+# Load selected method
+acc_matrix = load_matrix(method_name, "acc")
+auc_matrix = load_matrix(method_name, "auc")
+bwt_scores = load_bwt(method_name)
 
 matrix = acc_matrix if metric == "Accuracy" else auc_matrix
-
-# =========================
-# HELPER: COMPUTE BWT
-# =========================
-def compute_bwt(acc_mat):
-    T = acc_mat.shape[0]
-    if T < 2:
-        return 0.0
-
-    bwt_vals = []
-    for i in range(T - 1):
-        initial = acc_mat[i, i]
-        final = acc_mat[T - 1, i]
-        bwt_vals.append(final - initial)
-
-    return float(np.mean(bwt_vals))
 
 # =========================
 # MAIN UI
@@ -108,10 +106,9 @@ if matrix is None:
 taskwise = np.diag(matrix)
 final_avg_acc = float(np.mean(taskwise))
 forgetting = taskwise[0] - taskwise[-1]
-bwt_selected = compute_bwt(acc_matrix) if acc_matrix is not None else 0.0
 
 # =========================
-# TABS FOR CLEAN LAYOUT
+# TABS
 # =========================
 tab1, tab2, tab3 = st.tabs(["📈 Curves", "🔥 Heatmap", "📊 Summary & Bars"])
 
@@ -143,7 +140,7 @@ with tab2:
     st.pyplot(fig)
 
 # =========================
-# TAB 3 — SUMMARY + MULTI-MODEL BAR CHARTS
+# TAB 3 — SUMMARY + BARS
 # =========================
 with tab3:
     st.subheader("📌 Summary (Selected Method)")
@@ -162,24 +159,32 @@ with tab3:
 
     with col3:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric("Backward Transfer (BWT)", f"{bwt_selected:.2f}")
+        if bwt_scores is not None:
+            st.metric("Overall BWT", f"{np.mean(bwt_scores):.2f}")
+        else:
+            st.metric("Overall BWT", "Not Found")
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
     # ======================================================
-    # COMPUTE METRICS FOR ALL METHODS (FOR COMPARISON)
+    # COMPUTE METRICS FOR ALL METHODS (COMPARISON)
     # ======================================================
     avg_acc_all = {}
     bwt_all = {}
 
     for m in METHODS.keys():
-        acc_mat = load_latest_matrix(m, "acc")
+        acc_mat = load_matrix(m, "acc")
+        bwt = load_bwt(m)
+
         if acc_mat is not None:
             avg_acc_all[m] = float(np.mean(np.diag(acc_mat)))
-            bwt_all[m] = compute_bwt(acc_mat)
         else:
             avg_acc_all[m] = np.nan
+
+        if bwt is not None:
+            bwt_all[m] = float(np.mean(bwt))
+        else:
             bwt_all[m] = np.nan
 
     methods = list(avg_acc_all.keys())
@@ -187,9 +192,9 @@ with tab3:
     bwt_vals = [bwt_all[m] for m in methods]
 
     # =========================
-    # BAR CHART 1 — AVERAGE ACCURACY (ALL MODELS)
+    # BAR CHART 1 — AVG ACC (ALL METHODS)
     # =========================
-    st.subheader("📊 Final Average Accuracy — All Methods (Comparison)")
+    st.subheader("📊 Final Average Accuracy — All Methods")
 
     fig, ax = plt.subplots(figsize=(7, 4))
     ax.bar(methods, avg_vals)
@@ -200,9 +205,9 @@ with tab3:
     st.pyplot(fig)
 
     # =========================
-    # BAR CHART 2 — BWT (ALL MODELS)
+    # BAR CHART 2 — BWT (ALL METHODS)
     # =========================
-    st.subheader("📊 Backward Transfer (BWT) — All Methods (Comparison)")
+    st.subheader("📊 Backward Transfer (BWT) — All Methods")
 
     fig, ax = plt.subplots(figsize=(7, 4))
     ax.bar(methods, bwt_vals)
@@ -212,12 +217,32 @@ with tab3:
     ax.grid(axis="y")
     st.pyplot(fig)
 
-    # Optional table for clarity
+    # =========================
+    # NEW: VERTICAL TASK-WISE BWT BAR CHART (WHAT YOUR DR WANTS)
+    # =========================
+    if bwt_scores is not None:
+        st.subheader(f"📊 Task-wise BWT (Vertical Bar) — {method_name}")
+
+        tasks = np.arange(1, len(bwt_scores) + 1)
+
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.bar(tasks, bwt_scores)
+        ax.set_xlabel("Task Number")
+        ax.set_ylabel("Δ Accuracy (BWT)")
+        ax.set_title(f"Task-wise BWT — {method_name}")
+        ax.axhline(0, linestyle="--")
+        ax.grid(axis="y")
+        st.pyplot(fig)
+
+    # =========================
+    # TABLE
+    # =========================
     st.markdown("### 📋 Numeric Comparison Table")
-    import pandas as pd
+
     df = pd.DataFrame({
         "Method": methods,
         "Final Avg Accuracy": avg_vals,
         "BWT": bwt_vals
     })
+
     st.dataframe(df)
